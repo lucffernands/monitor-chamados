@@ -1,1 +1,32 @@
+name: Monitor de Chamados
 
+on:
+  schedule:
+    # A cada 5 minutos das 15h às 23h UTC-3 (Brasília)
+    - cron: "*/5 18-02 * * *"
+  workflow_dispatch: # permite rodar manualmente
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clonar repositório
+        uses: actions/checkout@v3
+
+      - name: 📦 Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: 📂 Instalar dependências
+        run: npm install
+
+      - name: 🚀 Rodar monitor
+        run: node monitor/principal.js
+        env:
+          SITE_USER: ${{ secrets.SITE_USER }}
+          SITE_PASS: ${{ secrets.SITE_PASS }}
+          SITE_DOMINIO: ${{ secrets.SITE_DOMINIO }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
