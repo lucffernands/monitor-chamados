@@ -63,7 +63,5 @@ async function extrairChamados(page) {
   });
 }
 
-module.exports = {
-  login,
-  extrairChamados,
-};
+module.exports = { login, obterChamados: extrairChamados };
+
