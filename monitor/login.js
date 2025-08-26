@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 
 async function obterChamados() {
   const browser = await puppeteer.launch({
-  headless: true,
+  headless: "new", // antigo era true
   args: ['--no-sandbox'],
   timeout: 0 // desativa timeout global
 });
@@ -38,11 +38,11 @@ async function obterChamados() {
   }
 
   // --- Página Home ---
-  await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }); // 60s
+  await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 120000 }); // 2min
   console.log("Home carregada:", page.url());
 
   // --- Clicar na "Central de Serviços de TI" ---
-  await page.waitForSelector('span[title="Central de Serviços de TI"]', { visible: true, timeout: 60000 });
+  await page.waitForSelector('span[title="Central de Serviços de TI"]', { visible: true, timeout: 120000 });
   await page.click('span[title="Central de Serviços de TI"]');
 
   // --- Clicar nos 3 pontinhos "Mais" ---
@@ -50,11 +50,11 @@ async function obterChamados() {
   await page.click('#header-more-items1');
 obrigada
   // --- Clicar na aba "Solicitações" ---
-  await page.waitForSelector('span[title="Solicitações"]', { visible: true, timeout: 60000 });
+  await page.waitForSelector('span[title="Solicitações"]', { visible: true, timeout: 120000 });
   await page.click('span[title="Solicitações"]');
 
   // --- Espera a tabela carregar ---
-  await page.waitForSelector('table', { visible: true, timeout: 60000 });
+  await page.waitForSelector('table', { visible: true, timeout: 120000 });
 
   // --- Extrai ID, Assunto e Vencimento (SLA) ---
   const chamados = await page.evaluate(() => {
