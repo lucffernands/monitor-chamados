@@ -61,12 +61,23 @@ async function obterChamados() {
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 120000 });
     console.log("✅ Lista de chamados carregada:", page.url());
 
-    // --- Espera segura da tabela ---
-    await page.waitForFunction(() => {
-      const tabela = document.querySelector('table');
-      return tabela && tabela.querySelectorAll('tr').length > 0;
-    }, { polling: 1000, timeout: 120000 });
-    console.log("✅ Tabela carregada");
+    // Espera a tabela carregar
+    await page.waitForSelector('#requests_list_body', { timeout: 120000 });
+
+    const chamados = await page.evaluate(() => {
+      const rows = Array.from(document.querySelectorAll('#requests_list_body tr'));
+      return rows.map(row => {
+        const cols = row.querySelectorAll('td');
+
+        return {
+          id: cols[4]?.querySelector('div[rel="uitooltip-track-table"]')?.innerText.trim() || null,
+          assunto: cols[7]?.querySelector('span.truncate-wrapper a')?.innerText.trim() || null,
+          vencimento: cols[15]?.querySelector('span[rel="uitooltip-track-table"]')?.innerText.trim() || null,
+        };
+      });
+    });
+
+    console.log(chamados);
 
     // --- Extrai ID, Assunto e Vencimento ---
     const chamados = await page.evaluate(() => {
