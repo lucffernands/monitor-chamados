@@ -9,31 +9,43 @@ async function monitorarChamados() {
   console.log("🔎 Verificando chamados...");
 
   // Obtém chamados do site
-  const novosChamados = await obterChamados();
+  const todosChamados = await obterChamados();
 
-  // Lê chamados já registrados
-  let chamadosAntigos = [];
+  // Identifica a data de hoje
+  const hoje = new Date().toISOString().slice(0, 10);
+
+  // Lê o arquivo de chamados, ou cria estrutura nova
+  let registro = {};
   if (fs.existsSync(CAMINHO_JSON)) {
-    chamadosAntigos = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
+    registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
   }
 
-  // Filtra chamados novos que ainda não foram vistos
-  const chamadosNaoVistos = novosChamados.filter(
-    novo => !chamadosAntigos.some(antigo => antigo.id === novo.id)
+  if (!registro[hoje]) registro[hoje] = [];
+
+  // Filtra somente os novos chamados do dia
+  const novosChamados = todosChamados.filter(
+    c => !registro[hoje].includes(c.id)
   );
 
-  if (chamadosNaoVistos.length > 0) {
-    console.log(`📢 ${chamadosNaoVistos.length} novos chamados encontrados!`);
+  if (novosChamados.length > 0) {
+    // Se primeira vez do dia, envia todos existentes
+    const mensagem = registro[hoje].length === 0
+      ? "*Chamados existentes hoje:*\n\n"
+      : "*Novos chamados:*\n\n";
 
-    for (const chamado of chamadosNaoVistos) {
-      const mensagem = `🆕 Novo chamado: <b>${chamado.id}</b>\n📌 ${chamado.titulo}`;
-      await enviarMensagem(mensagem);
-    }
+    let texto = mensagem;
+    novosChamados.forEach(c => {
+      texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⏰ Vencimento: ${c.vencimento}\n\n`;
+      registro[hoje].push(c.id); // adiciona ao registro
+    });
 
-    // Atualiza o JSON com todos os chamados
-    fs.writeFileSync(CAMINHO_JSON, JSON.stringify(novosChamados, null, 2));
+    await enviarMensagem(texto);
+    console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
+
+    // Atualiza o arquivo JSON
+    fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
   } else {
-    console.log("✅ Nenhum chamado novo.");
+    console.log("✅ Nenhum chamado novo hoje.");
   }
 }
 
@@ -44,6 +56,7 @@ if (require.main === module) {
       await monitorarChamados();
     } catch (err) {
       console.error("❌ Erro no monitor:", err.message);
+      await enviarMensagem(`❌ Erro no monitor: ${err.message}`);
     }
   })();
 }
