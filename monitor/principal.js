@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-const { obterChamados } = require("./login");
+const puppeteer = require("puppeteer");
+const { login, obterChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
 const CAMINHO_JSON = path.join(__dirname, "..", "chamados.json");
@@ -8,57 +9,62 @@ const CAMINHO_JSON = path.join(__dirname, "..", "chamados.json");
 async function monitorarChamados() {
   console.log("🔎 Verificando chamados...");
 
-  // Obtém chamados do site
-  const todosChamados = await obterChamados();
+  const browser = await puppeteer.launch({ headless: true });
+  const page = await browser.newPage();
 
-  // Identifica a data de hoje
-  const hoje = new Date().toISOString().slice(0, 10);
+  try {
+    // --- Login ---
+    await login(page, process.env.USUARIO, process.env.SENHA);
 
-  // Lê o arquivo de chamados, ou cria estrutura nova
-  let registro = {};
-  if (fs.existsSync(CAMINHO_JSON)) {
-    registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
-  }
+    // --- Extrair chamados ---
+    const todosChamados = await obterChamados(page);
+    console.log("✅ Chamados extraídos:", todosChamados.length);
 
-  if (!registro[hoje]) registro[hoje] = [];
+    // --- Data de hoje ---
+    const hoje = new Date().toISOString().slice(0, 10);
 
-  // Filtra somente os novos chamados do dia
-  const novosChamados = todosChamados.filter(
-    c => !registro[hoje].includes(c.id)
-  );
+    // --- Registro salvo ---
+    let registro = {};
+    if (fs.existsSync(CAMINHO_JSON)) {
+      registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
+    }
+    if (!registro[hoje]) registro[hoje] = [];
 
-  if (novosChamados.length > 0) {
-    // Se primeira vez do dia, envia todos existentes
-    const mensagem = registro[hoje].length === 0
-      ? "*Chamados existentes hoje:*\n\n"
-      : "*Novos chamados:*\n\n";
+    // --- Novos chamados ---
+    const novosChamados = todosChamados.filter(
+      (c) => !registro[hoje].includes(c.id)
+    );
 
-    let texto = mensagem;
-    novosChamados.forEach(c => {
-      texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⏰ Vencimento: ${c.vencimento}\n\n`;
-      registro[hoje].push(c.id); // adiciona ao registro
-    });
+    if (novosChamados.length > 0) {
+      const mensagem =
+        registro[hoje].length === 0
+          ? "*Chamados existentes hoje:*\n\n"
+          : "*Novos chamados:*\n\n";
 
-    await enviarMensagem(texto);
-    console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
+      let texto = mensagem;
+      novosChamados.forEach((c) => {
+        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⏰ Vencimento: ${c.vencimento}\n\n`;
+        registro[hoje].push(c.id);
+      });
 
-    // Atualiza o arquivo JSON
-    fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
-  } else {
-    console.log("✅ Nenhum chamado novo hoje.");
+      await enviarMensagem(texto);
+      console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
+
+      fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
+    } else {
+      console.log("✅ Nenhum chamado novo hoje.");
+    }
+  } catch (err) {
+    console.error("❌ Erro no monitor:", err.message);
+    await enviarMensagem(`❌ Erro no monitor: ${err.message}`);
+  } finally {
+    await browser.close();
   }
 }
 
 // Para rodar isolado
 if (require.main === module) {
-  (async () => {
-    try {
-      await monitorarChamados();
-    } catch (err) {
-      console.error("❌ Erro no monitor:", err.message);
-      await enviarMensagem(`❌ Erro no monitor: ${err.message}`);
-    }
-  })();
+  monitorarChamados();
 }
 
 module.exports = { monitorarChamados };
