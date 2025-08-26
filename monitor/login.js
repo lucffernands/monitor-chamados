@@ -2,9 +2,9 @@ const puppeteer = require('puppeteer');
 
 async function obterChamados() {
   const browser = await puppeteer.launch({
-    headless: "new", // modo headless moderno
+    headless: false, // abre o navegador visível
     args: ['--no-sandbox'],
-    timeout: 0 // desativa timeout global
+    timeout: 0
   });
 
   const page = await browser.newPage();
@@ -17,6 +17,7 @@ async function obterChamados() {
     // Expande painel se houver
     await page.waitForSelector('.zcollapsiblepanel__togglebutton', { timeout: 60000 });
     await page.click('.zcollapsiblepanel__togglebutton');
+    console.log("✅ Painel expandido");
 
     // --- Login via SAML ---
     await page.waitForSelector('a.sign-saml', { visible: true, timeout: 60000 });
@@ -69,7 +70,7 @@ async function obterChamados() {
     await page.waitForFunction(() => {
       const tabela = document.querySelector('table');
       return tabela && tabela.querySelectorAll('tr').length > 0;
-    }, { timeout: 120000 });
+    }, { polling: 1000, timeout: 120000 });
     console.log("✅ Tabela carregada");
 
     // --- Extrai ID, Assunto e Vencimento ---
@@ -88,6 +89,8 @@ async function obterChamados() {
         .filter(Boolean);
     });
 
+    console.log("✅ Chamados extraídos:", chamados.length);
+
     await browser.close();
     return chamados;
 
@@ -100,7 +103,7 @@ async function obterChamados() {
 // Exporta função
 module.exports = { obterChamados };
 
-// Para testar sozinho
+// Para teste isolado
 if (require.main === module) {
   (async () => {
     try {
@@ -110,4 +113,4 @@ if (require.main === module) {
       console.error("❌ Erro no login:", err);
     }
   })();
-              }
+}
