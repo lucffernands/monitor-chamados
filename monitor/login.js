@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 
 async function obterChamados() {
   const browser = await puppeteer.launch({
-    headless: false, // abre o navegador visível
+    headless: "new", // modo headless moderno
     args: ['--no-sandbox'],
     timeout: 0
   });
@@ -58,15 +58,12 @@ async function obterChamados() {
     await page.waitForTimeout(3000);
     console.log("✅ Central de Serviços clicada:", page.url());
 
-    // --- Mais → Solicitações ---
-    await page.waitForSelector('#header-more-items1', { visible: true, timeout: 60000 });
-    await page.click('#header-more-items1');
-
-    await page.waitForSelector('span[title="Solicitações"]', { visible: true, timeout: 60000 });
+    // --- Aba Solicitações (pula botão “Mais”) ---
+    await page.waitForSelector('span[title="Solicitações"]', { visible: true, timeout: 120000 });
     await page.click('span[title="Solicitações"]');
     console.log("✅ Aba Solicitações clicada:", page.url());
 
-    // --- Espera a tabela carregar (garante pelo menos uma linha) ---
+    // --- Espera segura da tabela ---
     await page.waitForFunction(() => {
       const tabela = document.querySelector('table');
       return tabela && tabela.querySelectorAll('tr').length > 0;
