@@ -1,10 +1,12 @@
 name: Monitor de Chamados
 
+concurrency:
+  group: monitor-de-chamados
+  cancel-in-progress: false  # Se true, cancela execuções antigas quando uma nova é disparada
+
 on:
   schedule:
-    # A cada 5 minutos das 18h às 23h UTC (15h-20h Brasília)
     - cron: "*/5 18-23 * * *"
-    # A cada 5 minutos da 00h às 02h UTC (21h-23h Brasília)
     - cron: "*/5 0-2 * * *"
   workflow_dispatch: # permite rodar manualmente
 
