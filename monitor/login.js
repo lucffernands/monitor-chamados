@@ -58,17 +58,22 @@ async function obterChamados() {
     await page.waitForTimeout(3000);
     console.log("✅ Central de Serviços clicada:", page.url());
 
-   // --- Aba Solicitações ---
-await page.waitForSelector('a#requests', { visible: true, timeout: 120000 });
-await page.click('a#requests');
-console.log("✅ Aba Solicitações clicada:", page.url());
+    // --- Clicar direto em "Solicitações" ---
+    await page.waitForFunction(() => {
+      const el = document.querySelector('a#requests');
+      return el && el.offsetParent !== null; // garante que está visível
+    }, { polling: 1000, timeout: 120000 });
 
-// --- Espera segura da tabela ---
-await page.waitForFunction(() => {
-  const tabela = document.querySelector('table');
-  return tabela && tabela.querySelectorAll('tr').length > 0;
-}, { polling: 1000, timeout: 120000 });
-console.log("✅ Tabela carregada");
+    await page.click('a#requests');
+    console.log("✅ Aba Solicitações clicada");
+
+    // --- Espera segura da tabela ---
+    await page.waitForFunction(() => {
+      const tabela = document.querySelector('table');
+      return tabela && tabela.querySelectorAll('tr').length > 0;
+    }, { polling: 1000, timeout: 120000 });
+    console.log("✅ Tabela carregada");
+
 
     // --- Extrai ID, Assunto e Vencimento ---
     const chamados = await page.evaluate(() => {
