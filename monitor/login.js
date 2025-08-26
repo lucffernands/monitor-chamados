@@ -53,19 +53,13 @@ async function obterChamados() {
     await page.waitForSelector('span[title="Central de Serviços de TI"]', { visible: true, timeout: 120000 });
     console.log("✅ Home carregada:", page.url());
 
-    // --- Central de Serviços ---
+    // Após clicar na Central de Serviços de TI
     await page.click('span[title="Central de Serviços de TI"]');
-    await page.waitForTimeout(3000);
     console.log("✅ Central de Serviços clicada:", page.url());
 
-    // --- Clicar direto em "Solicitações" ---
-    await page.waitForFunction(() => {
-      const el = document.querySelector('a#requests');
-      return el && el.offsetParent !== null; // garante que está visível
-    }, { polling: 1000, timeout: 120000 });
-
-    await page.click('a#requests');
-    console.log("✅ Aba Solicitações clicada");
+    // Espera a URL /WOListView.do carregar
+    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 120000 });
+    console.log("✅ Lista de chamados carregada:", page.url());
 
     // --- Espera segura da tabela ---
     await page.waitForFunction(() => {
@@ -73,7 +67,6 @@ async function obterChamados() {
       return tabela && tabela.querySelectorAll('tr').length > 0;
     }, { polling: 1000, timeout: 120000 });
     console.log("✅ Tabela carregada");
-
 
     // --- Extrai ID, Assunto e Vencimento ---
     const chamados = await page.evaluate(() => {
