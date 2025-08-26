@@ -27,8 +27,7 @@ jobs:
       - name: 🚀 Rodar monitor
         run: node monitor/principal.js
         env:
-          SITE_USER: ${{ secrets.SITE_USER }}
-          SITE_PASS: ${{ secrets.SITE_PASS }}
-          SITE_DOMINIO: ${{ secrets.SITE_DOMINIO }}
+          MS_USER: ${{ secrets.MS_USER }}
+          MS_PASS: ${{ secrets.MS_PASS }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
