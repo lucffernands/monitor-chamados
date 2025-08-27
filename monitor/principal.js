@@ -9,7 +9,10 @@ const CAMINHO_JSON = path.join(__dirname, "..", "chamados.json");
 async function monitorarChamados() {
   console.log("🔎 Verificando chamados...");
 
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+  headless: "new",   // usa o novo headless (evita o aviso de depreciação)
+  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   try {
