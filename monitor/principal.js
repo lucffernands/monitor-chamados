@@ -57,7 +57,7 @@ async function monitorarChamados() {
       let texto = mensagem; // inicializa com a mensagem
       
       novosChamados.forEach(c => {
-        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n\n`;
+        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n-----------\n`;
         registro[hoje].push(c.id); // adiciona ao registro imediatamente
       });
       
