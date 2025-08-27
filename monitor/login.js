@@ -3,55 +3,70 @@ const puppeteer = require("puppeteer");
 async function login(page, usuario, senha) {
   console.log("🌐 Abrindo página inicial...");
 
-  // Abre a página inicial
   await page.goto("https://servicos.viracopos.com", {
     waitUntil: "domcontentloaded",
     timeout: 120000,
   });
   console.log("✅ Página inicial carregada:", page.url());
 
-  // Debug: esperar manualmente caso o seletor não apareça
+  // --- Clica em "SAML" ---
   try {
-    await page.waitForSelector("#userName", { timeout: 60000 });
+    await page.waitForSelector("a[href*='saml']", { timeout: 60000 });
+    await page.click("a[href*='saml']");
+    console.log("✅ Clicou em 'SAML'");
   } catch (err) {
-    console.error("❌ Campo #userName não encontrado. URL atual:", page.url());
-    console.log("💡 Você pode verificar manualmente no browser aberto.");
-    await page.screenshot({ path: "debug_login.png" });
-    console.log("⏸ Pausando 60s para depuração manual...");
-    await page.waitForTimeout(60000); // pausa segura 60s
+    console.error("❌ Botão/link 'SAML' não encontrado. URL atual:", page.url());
+    await page.screenshot({ path: "debug_saml.png" });
+    return;
   }
 
-  // --- Preenche usuário e senha ---
-  if (await page.$("#userName")) {
-    await page.type("#userName", usuario);
-    console.log("✅ Usuário digitado");
+  // --- Aguarda redirecionamento ---
+  await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 60000 });
+  console.log("➡️ Redirecionado para:", page.url());
+  await page.screenshot({ path: "debug_after_saml.png" });
+
+  // --- Caso 1: já autenticado e caiu no portal ESM ---
+  if (page.url().includes("ESM.do")) {
+    console.log("🔑 Fluxo: já autenticado / híbrido");
+    await page.goto("https://servicos.viracopos.com/WOListView.do", {
+      waitUntil: "networkidle0",
+      timeout: 120000,
+    });
   }
 
-  if (await page.$("#password")) {
-    await page.type("#password", senha);
-    console.log("✅ Senha digitada");
+  // --- Caso 2: formulário de login visível ---
+  else if (await page.$("#userName")) {
+    console.log("🔑 Fluxo: login manual");
+    try {
+      await page.type("#userName", usuario);
+      console.log("✅ Usuário digitado");
+
+      await page.type("#password", senha);
+      console.log("✅ Senha digitada");
+
+      if (await page.$("button[type=submit]")) {
+        await page.click("button[type=submit]");
+        console.log("✅ Botão 'Entrar' clicado");
+      }
+
+      await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 120000 });
+      console.log("✅ Login realizado, URL:", page.url());
+      await page.screenshot({ path: "debug_after_login.png" });
+
+      // Depois do login pode cair em ESM.do → forçamos ir para lista
+      await page.goto("https://servicos.viracopos.com/WOListView.do", {
+        waitUntil: "networkidle0",
+        timeout: 120000,
+      });
+    } catch (err) {
+      console.error("❌ Erro durante login:", err.message);
+      await page.screenshot({ path: "debug_login_error.png" });
+      return;
+    }
   }
 
-  // --- Clica no botão Entrar ---
-  if (await page.$("button[type=submit]")) {
-    await page.click("button[type=submit]");
-    console.log("✅ Botão 'Entrar' clicado");
-  }
-
-  // --- Aguarda redirecionar ---
-  try {
-    await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 120000 });
-    console.log("✅ Login realizado, URL:", page.url());
-  } catch {
-    console.warn("⚠️ Login pode não ter sido concluído, verifique manualmente.");
-  }
-
-  // --- Ir direto para lista de chamados ---
-  await page.goto("https://servicos.viracopos.com/WOListView.do", {
-    waitUntil: "networkidle0",
-    timeout: 120000,
-  });
   console.log("✅ Lista de chamados carregada:", page.url());
+  await page.screenshot({ path: "debug_chamados.png" });
 
   // --- Aguarda tabela de chamados ---
   try {
@@ -60,8 +75,6 @@ async function login(page, usuario, senha) {
   } catch {
     console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
     await page.screenshot({ path: "debug_table.png" });
-    console.log("⏸ Pausando 60s para depuração manual...");
-    await page.waitForTimeout(60000); // pausa segura 60s
   }
 }
 
