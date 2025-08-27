@@ -10,8 +10,8 @@ async function monitorarChamados() {
   console.log("🔎 Verificando chamados...");
 
   const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"], // evita problemas no CI/CD
   });
   const page = await browser.newPage();
 
@@ -21,19 +21,19 @@ async function monitorarChamados() {
 
     // --- Extrair chamados ---
     const todosChamados = await obterChamados(page);
-    console.log("✅ Chamados extraídos:", todosChamados.length);
+    console.log(`✅ Chamados extraídos: ${todosChamados.length}`);
 
-    // --- Data de hoje ---
+    // --- Identifica a data de hoje ---
     const hoje = new Date().toISOString().slice(0, 10);
 
-    // --- Registro salvo ---
+    // --- Lê ou cria o registro JSON ---
     let registro = {};
     if (fs.existsSync(CAMINHO_JSON)) {
       registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
     }
     if (!registro[hoje]) registro[hoje] = [];
 
-    // --- Novos chamados ---
+    // --- Filtra apenas os novos chamados do dia ---
     const novosChamados = todosChamados.filter(
       (c) => !registro[hoje].includes(c.id)
     );
@@ -47,7 +47,7 @@ async function monitorarChamados() {
       let texto = mensagem;
       novosChamados.forEach((c) => {
         texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⏰ Vencimento: ${c.vencimento}\n\n`;
-        registro[hoje].push(c.id);
+        registro[hoje].push(c.id); // adiciona ao registro
       });
 
       await enviarMensagem(texto);
