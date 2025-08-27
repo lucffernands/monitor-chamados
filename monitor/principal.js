@@ -10,14 +10,14 @@ async function monitorarChamados() {
   console.log("🔎 Verificando chamados...");
 
   const browser = await puppeteer.launch({
-  headless: "new",   // usa o novo headless (evita o aviso de depreciação)
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: "new",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
   const page = await browser.newPage();
 
   try {
     // --- Login ---
-    await login(page, process.env.USUARIO, process.env.SENHA);
+    await login(page, process.env.MS_USER, process.env.MS_PASS);
 
     // --- Extrair chamados ---
     const todosChamados = await obterChamados(page);
