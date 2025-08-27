@@ -9,12 +9,12 @@ async function login(page, usuario, senha) {
   });
 
   // --- Preenche usuário ---
-  await page.waitForSelector("#userName");
+  await page.waitForSelector("#userName", { timeout: 60000 });
   await page.type("#userName", usuario);
   console.log("✅ Usuário digitado");
 
   // --- Preenche senha ---
-  await page.waitForSelector("#password");
+  await page.waitForSelector("#password", { timeout: 60000 });
   await page.type("#password", senha);
   console.log("✅ Senha digitada");
 
@@ -43,9 +43,6 @@ async function login(page, usuario, senha) {
   console.log("✅ Tabela de chamados encontrada");
 }
 
-/**
- * Extrai ID, Assunto e Vencimento da lista de chamados
- */
 async function extrairChamados(page) {
   return await page.evaluate(() => {
     return Array.from(document.querySelectorAll("#requests_list_body tr"))
@@ -64,4 +61,3 @@ async function extrairChamados(page) {
 }
 
 module.exports = { login, obterChamados: extrairChamados };
-
