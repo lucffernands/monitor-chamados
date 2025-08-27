@@ -17,7 +17,8 @@ async function login(page, usuario, senha) {
     console.error("❌ Campo #userName não encontrado. URL atual:", page.url());
     console.log("💡 Você pode verificar manualmente no browser aberto.");
     await page.screenshot({ path: "debug_login.png" });
-    await page.pause(); // pausa para você interagir manualmente
+    console.log("⏸ Pausando 60s para depuração manual...");
+    await page.waitForTimeout(60000); // pausa segura 60s
   }
 
   // --- Preenche usuário e senha ---
@@ -59,7 +60,8 @@ async function login(page, usuario, senha) {
   } catch {
     console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
     await page.screenshot({ path: "debug_table.png" });
-    await page.pause();
+    console.log("⏸ Pausando 60s para depuração manual...");
+    await page.waitForTimeout(60000); // pausa segura 60s
   }
 }
 
