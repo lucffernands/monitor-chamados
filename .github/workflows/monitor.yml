@@ -35,7 +35,7 @@ jobs:
 
   monitor-sla:
     runs-on: ubuntu-latest
-    needs: monitor   # só executa se o "monitor" terminar com sucesso
+    needs: monitor-chamados   # só executa se o "monitor-chamados" terminar com sucesso
     steps:
       - name: 📥 Clonar repositório
         uses: actions/checkout@v3
