@@ -5,10 +5,10 @@ concurrency:
   cancel-in-progress: false  # Se true, cancela execuções antigas quando uma nova é disparada
 
 on:
-  # Temporariamente desativado para testes
-  # schedule:
-  #   - cron: "*/5 18-23 * * *"
-  #   - cron: "*/5 0-2 * * *"
+  Temporariamente desativado para testes
+  schedule:
+   - cron: "*/5 18-23 * * *"
+   - cron: "*/5 0-2 * * *"
   workflow_dispatch: # permite rodar manualmente
 
 jobs:
