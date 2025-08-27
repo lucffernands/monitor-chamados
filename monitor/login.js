@@ -81,9 +81,10 @@ async function extrairChamados(page) {
         const cols = row.querySelectorAll("td");
         if (cols.length) {
           return {
-            id: cols[4]?.innerText.trim() || "",
-            assunto: cols[8]?.innerText.trim() || "",
-            vencimento: cols[cols.length - 3]?.innerText.trim() || "",
+            id: cols[4]?.innerText.trim() || "",      // coluna 5
+            sla: cols[6]?.innerText.trim() || "",     // coluna 7
+            status: cols[12]?.innerText.trim() || "", // coluna 13
+            assunto: cols[8]?.innerText.trim() || "", // coluna 9
           };
         }
       })
