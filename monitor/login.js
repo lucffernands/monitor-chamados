@@ -1,48 +1,71 @@
 const puppeteer = require("puppeteer");
 
 async function login(page, usuario, senha) {
-  console.log("🌐 Acessando página de login...");
+  console.log("🌐 Abrindo página inicial...");
 
+  // Abre a página inicial
   await page.goto("https://servicos.viracopos.com", {
     waitUntil: "domcontentloaded",
-    timeout: 60000,
+    timeout: 120000,
   });
+  console.log("✅ Página inicial carregada:", page.url());
 
-  // --- Preenche usuário ---
-  await page.waitForSelector("#userName", { timeout: 60000 });
-  await page.type("#userName", usuario);
-  console.log("✅ Usuário digitado");
+  // Debug: esperar manualmente caso o seletor não apareça
+  try {
+    await page.waitForSelector("#userName", { timeout: 60000 });
+  } catch (err) {
+    console.error("❌ Campo #userName não encontrado. URL atual:", page.url());
+    console.log("💡 Você pode verificar manualmente no browser aberto.");
+    await page.screenshot({ path: "debug_login.png" });
+    await page.pause(); // pausa para você interagir manualmente
+  }
 
-  // --- Preenche senha ---
-  await page.waitForSelector("#password", { timeout: 60000 });
-  await page.type("#password", senha);
-  console.log("✅ Senha digitada");
+  // --- Preenche usuário e senha ---
+  if (await page.$("#userName")) {
+    await page.type("#userName", usuario);
+    console.log("✅ Usuário digitado");
+  }
+
+  if (await page.$("#password")) {
+    await page.type("#password", senha);
+    console.log("✅ Senha digitada");
+  }
 
   // --- Clica no botão Entrar ---
-  await page.click("button[type=submit]");
-  console.log("✅ Botão 'Entrar' clicado");
+  if (await page.$("button[type=submit]")) {
+    await page.click("button[type=submit]");
+    console.log("✅ Botão 'Entrar' clicado");
+  }
 
   // --- Aguarda redirecionar ---
-  await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 60000 });
-  console.log("✅ Login realizado, URL:", page.url());
+  try {
+    await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 120000 });
+    console.log("✅ Login realizado, URL:", page.url());
+  } catch {
+    console.warn("⚠️ Login pode não ter sido concluído, verifique manualmente.");
+  }
 
-  // --- Clica em Central de Serviços ---
-  await page.waitForSelector("a[title='Central de Serviços de TI']", { timeout: 60000 });
-  await page.click("a[title='Central de Serviços de TI']");
-  console.log("✅ Central de Serviços clicada:", page.url());
-
-  // --- Força ir direto para a lista de chamados ---
+  // --- Ir direto para lista de chamados ---
   await page.goto("https://servicos.viracopos.com/WOListView.do", {
     waitUntil: "networkidle0",
-    timeout: 60000,
+    timeout: 120000,
   });
   console.log("✅ Lista de chamados carregada:", page.url());
 
   // --- Aguarda tabela de chamados ---
-  await page.waitForSelector("#requests_list_body", { timeout: 60000 });
-  console.log("✅ Tabela de chamados encontrada");
+  try {
+    await page.waitForSelector("#requests_list_body", { timeout: 60000 });
+    console.log("✅ Tabela de chamados encontrada");
+  } catch {
+    console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
+    await page.screenshot({ path: "debug_table.png" });
+    await page.pause();
+  }
 }
 
+/**
+ * Extrai ID, Assunto e Vencimento da lista de chamados
+ */
 async function extrairChamados(page) {
   return await page.evaluate(() => {
     return Array.from(document.querySelectorAll("#requests_list_body tr"))
