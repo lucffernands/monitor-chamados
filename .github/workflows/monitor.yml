@@ -5,7 +5,6 @@ concurrency:
   cancel-in-progress: false  # Se true, cancela execuções antigas quando uma nova é disparada
 
 on:
-  Temporariamente desativado para testes
   schedule:
    - cron: "*/5 18-23 * * *"
    - cron: "*/5 0-2 * * *"
