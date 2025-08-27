@@ -44,9 +44,10 @@ async function monitorarChamados() {
     if (!registro[hoje]) registro[hoje] = [];
 
     // --- Filtra apenas os novos chamados do dia ---
-    const novosChamados = todosChamados.filter(
-      (c) => !registro[hoje].includes(c.id)
-    );
+    const novosChamados = todosChamados.filter((c) => {
+      const idNormalizado = c.id.trim(); // remove espaços extras
+      return !registro[hoje].includes(idNormalizado);
+    });
 
     if (novosChamados.length > 0) {
       const mensagem =
@@ -57,8 +58,9 @@ async function monitorarChamados() {
       let texto = mensagem; // inicializa com a mensagem
       
       novosChamados.forEach(c => {
-        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n-----------\n`;
-        registro[hoje].push(c.id); // adiciona ao registro imediatamente
+        const idNormalizado = c.id.trim();
+        texto += `🆔 ID: ${idNormalizado}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n----------\n`;
+        registro[hoje].push(idNormalizado); // salva sempre normalizado
       });
       
       // grava no JSON **após o forEach**
