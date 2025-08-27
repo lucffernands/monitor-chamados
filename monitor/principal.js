@@ -57,8 +57,12 @@ async function monitorarChamados() {
       let texto = mensagem; // inicializa com a mensagem
       
       novosChamados.forEach(c => {
-        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n\n`; // adiciona ao registro
+        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n\n`;
+        registro[hoje].push(c.id); // adiciona ao registro imediatamente
       });
+      
+      // grava no JSON **após o forEach**
+      fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
 
       await enviarMensagem(texto);
       console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
