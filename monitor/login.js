@@ -3,76 +3,69 @@ const puppeteer = require("puppeteer");
 async function login(page, usuario, senha) {
   console.log("🌐 Abrindo página inicial...");
 
+  // Abre a página inicial
   await page.goto("https://servicos.viracopos.com", {
     waitUntil: "domcontentloaded",
     timeout: 120000,
   });
   console.log("✅ Página inicial carregada:", page.url());
 
-  // --- Clica em "SAML" ---
+  // --- Clica no SAML (sempre presente) ---
   try {
     await page.waitForSelector("a.sign-saml", { timeout: 60000 });
     await page.click("a.sign-saml");
-    console.log("✅ Clicou em 'SAML'");
+    console.log("✅ Botão SAML clicado");
   } catch (err) {
-    console.error("❌ Botão 'SAML' não encontrado. URL atual:", page.url());
-    await page.screenshot({ path: "debug_saml.png" });
-    return;
+    console.warn("⚠️ Botão SAML não encontrado, continuando...");
   }
 
-  // --- Aguarda redirecionamento ---
-  await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 60000 });
-  console.log("➡️ Redirecionado para:", page.url());
-  await page.screenshot({ path: "debug_after_saml.png" });
+  // --- Espera redirecionar para Microsoft Login ou portal ESM ---
+  await page.waitForTimeout(2000); // pequeno delay para carregar
 
-  // --- Caso 1: já autenticado e caiu no portal ESM ---
-  if (page.url().includes("ESM.do")) {
-    console.log("🔑 Fluxo: já autenticado / híbrido");
-    await page.goto("https://servicos.viracopos.com/WOListView.do", {
-      waitUntil: "networkidle0",
-      timeout: 120000,
-    });
-  }
+  const urlAtual = page.url();
 
-  // --- Caso 2: formulário de login visível ---
-  else if (await page.$("#userName")) {
-    console.log("🔑 Fluxo: login manual");
+  // --- Caso apareça login Microsoft ---
+  if (urlAtual.includes("login.microsoftonline.com")) {
+    console.log("🌐 Página de login Microsoft detectada");
+
     try {
-      await page.type("#userName", usuario);
+      await page.waitForSelector("input[name='loginfmt']", { timeout: 60000 });
+      await page.type("input[name='loginfmt']", usuario);
       console.log("✅ Usuário digitado");
 
-      await page.type("#password", senha);
+      await page.click("input[type='submit']");
+      await page.waitForTimeout(2000); // aguarda avançar
+
+      await page.waitForSelector("input[name='passwd']", { timeout: 60000 });
+      await page.type("input[name='passwd']", senha);
       console.log("✅ Senha digitada");
 
-      if (await page.$("button[type=submit]")) {
-        await page.click("button[type=submit]");
-        console.log("✅ Botão 'Entrar' clicado");
-      }
+      await page.click("input[type='submit']");
+      console.log("✅ Login Microsoft enviado");
 
+      // Aguarda redirecionar
       await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 120000 });
-      console.log("✅ Login realizado, URL:", page.url());
-      await page.screenshot({ path: "debug_after_login.png" });
-
-      // Depois do login pode cair em ESM.do → forçamos ir para lista
-      await page.goto("https://servicos.viracopos.com/WOListView.do", {
-        waitUntil: "networkidle0",
-        timeout: 120000,
-      });
+      console.log("✅ Redirecionado após login Microsoft:", page.url());
     } catch (err) {
-      console.error("❌ Erro durante login:", err.message);
-      await page.screenshot({ path: "debug_login_error.png" });
-      return;
+      console.error("❌ Erro no login Microsoft:", err.message);
+      await page.screenshot({ path: "debug_ms_login.png" });
     }
+  } else {
+    console.log("🌐 Sessão ativa ou portal direto:", urlAtual);
   }
 
+  // --- Força ir para lista de chamados ---
+  await page.goto("https://servicos.viracopos.com/WOListView.do", {
+    waitUntil: "networkidle0",
+    timeout: 120000,
+  });
   console.log("✅ Lista de chamados carregada:", page.url());
-  await page.screenshot({ path: "debug_chamados.png" });
 
   // --- Aguarda tabela de chamados ---
   try {
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
-  } catch {
+  } catch (err) {
     console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
     await page.screenshot({ path: "debug_table.png" });
   }
