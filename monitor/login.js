@@ -11,11 +11,11 @@ async function login(page, usuario, senha) {
 
   // --- Clica em "SAML" ---
   try {
-    await page.waitForSelector("a[href*='saml']", { timeout: 60000 });
-    await page.click("a[href*='saml']");
+    await page.waitForSelector("a.sign-saml", { timeout: 60000 });
+    await page.click("a.sign-saml");
     console.log("✅ Clicou em 'SAML'");
   } catch (err) {
-    console.error("❌ Botão/link 'SAML' não encontrado. URL atual:", page.url());
+    console.error("❌ Botão 'SAML' não encontrado. URL atual:", page.url());
     await page.screenshot({ path: "debug_saml.png" });
     return;
   }
