@@ -6,9 +6,9 @@ concurrency:
 
 on:
   schedule:
-    - cron: "*/5 18-23 * * *" # 15h-23h Brasília (UTC+3)
-    - cron: "*/5 0-2 * * *"   # 21h-23h Brasília (UTC+3)
-  workflow_dispatch:
+    - cron: "*/5 18-23 * * *" # 15h-23h no horário de Brasília (UTC+3)
+    - cron: "*/5 0-2 * * *"   # 21h-23h no horário de Brasília (UTC+3)
+  workflow_dispatch: # permite rodar manualmente
 
 jobs:
   monitor-chamados:
@@ -16,21 +16,15 @@ jobs:
     steps:
       - name: 📥 Clonar repositório
         uses: actions/checkout@v3
+        with:
+          persist-credentials: true # mantém credenciais para commit
 
       - name: 📦 Configurar Node.js
         uses: actions/setup-node@v3
         with:
           node-version: 18
 
-      - name: 📂 Restaurar cache de dependências
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-deps-
-
-      - name: 📦 Instalar dependências
+      - name: 📂 Instalar dependências
         run: npm install
 
       - name: 🚀 Rodar monitor principal
@@ -41,9 +35,17 @@ jobs:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
+      - name: 💾 Commit do chamados.json (se houver mudanças)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add chamados.json
+          git diff --cached --quiet || git commit -m "📌 Atualiza chamados.json [skip ci]"
+          git push
+
   monitor-sla:
     runs-on: ubuntu-latest
-    needs: monitor-chamados
+    needs: monitor-chamados   # só executa se o "monitor-chamados" terminar com sucesso
     steps:
       - name: 📥 Clonar repositório
         uses: actions/checkout@v3
@@ -53,15 +55,7 @@ jobs:
         with:
           node-version: 18
 
-      - name: 📂 Restaurar cache de dependências
-        uses: actions/cache@v3
-        with:
-          path: ~/.npm
-          key: npm-deps-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            npm-deps-
-
-      - name: 📦 Instalar dependências
+      - name: 📂 Instalar dependências
         run: npm install
 
       - name: 🚨 Rodar monitor de SLA
