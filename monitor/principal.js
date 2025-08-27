@@ -44,8 +44,12 @@ async function monitorarChamados() {
           ? "*Chamados existentes hoje:*\n\n"
           : "*Novos chamados:*\n\n";
 
-      let texto = mensagem; // já inicializa com a mensagem
-      texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Status: ${c.status}\n⏰ SLA: ${c.sla}\n\n`;
+      let texto = mensagem; // inicializa com a mensagem
+      
+      novosChamados.forEach(c => {
+        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${c.sla}\n\n`;
+        registro[hoje].push(c.id); // adiciona ao registro
+      });
 
       await enviarMensagem(texto);
       console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
