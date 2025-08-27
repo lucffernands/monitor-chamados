@@ -44,7 +44,7 @@ async function monitorarChamados() {
           ? "*Chamados existentes hoje:*\n\n"
           : "*Novos chamados:*\n\n";
 
-      let : let texto = mensagem; // já inicializa com a mensagem
+      let texto = mensagem; // já inicializa com a mensagem
       texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Status: ${c.status}\n⏰ SLA: ${c.sla}\n\n`;
 
       await enviarMensagem(texto);
