@@ -11,7 +11,7 @@ on:
   workflow_dispatch: # permite rodar manualmente
 
 jobs:
-  monitor:
+  monitor-chamados:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Clonar repositório
