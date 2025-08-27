@@ -4,6 +4,16 @@ const puppeteer = require("puppeteer");
 const { login, obterChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
+
+// Função para traduzir SLA
+function traduzirSLA(sla) {
+  if (!sla) return "-";
+  return sla
+    .replace("On due", "No prazo")
+    .replace("Due in", "Vence em") // para textos como "Due in 3h 23m"
+    .replace("Overdue", "Vencido");
+}
+
 const CAMINHO_JSON = path.join(__dirname, "..", "chamados.json");
 
 async function monitorarChamados() {
