@@ -39,9 +39,8 @@ jobs:
           git config user.email "actions@github.com"
           git add chamados.json
           git commit -m "📌 Atualiza chamados.json [skip ci]" || echo "Sem alterações para commitar"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/lucffernands/monitor-chamados.git HEAD:main
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/lucffernands/monitor-chamados.git HEAD:main
+    
 
   monitor-sla:
     runs-on: ubuntu-latest
