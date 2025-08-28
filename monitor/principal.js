@@ -4,7 +4,6 @@ const puppeteer = require("puppeteer");
 const { login, obterChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
-
 // Função para traduzir SLA
 function traduzirSLA(sla) {
   if (!sla) return "-";
@@ -39,13 +38,18 @@ async function monitorarChamados() {
     // --- Lê ou cria o registro JSON ---
     let registro = {};
     if (fs.existsSync(CAMINHO_JSON)) {
-      registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
+      try {
+        registro = JSON.parse(fs.readFileSync(CAMINHO_JSON, "utf8"));
+      } catch {
+        console.warn("⚠️ Erro lendo chamados.json, recriando...");
+        registro = {};
+      }
     }
     if (!registro[hoje]) registro[hoje] = [];
 
     // --- Filtra apenas os novos chamados do dia ---
     const novosChamados = todosChamados.filter((c) => {
-      const idNormalizado = c.id.trim(); // remove espaços extras
+      const idNormalizado = c.id.trim();
       return !registro[hoje].includes(idNormalizado);
     });
 
@@ -55,21 +59,19 @@ async function monitorarChamados() {
           ? "*Chamados existentes hoje:*\n\n"
           : "*Novos chamados:*\n\n";
 
-      let texto = mensagem; // inicializa com a mensagem
-      
-      novosChamados.forEach(c => {
+      let texto = mensagem;
+
+      novosChamados.forEach((c) => {
         const idNormalizado = c.id.trim();
         texto += `🆔 ID: ${idNormalizado}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n----------\n`;
-        registro[hoje].push(idNormalizado); // salva sempre normalizado
+        registro[hoje].push(idNormalizado);
       });
-      
-      // grava no JSON **após o forEach**
+
+      // Salva atualização no JSON
       fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
 
       await enviarMensagem(texto);
       console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
-
-      fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
     } else {
       console.log("✅ Nenhum chamado novo hoje.");
     }
