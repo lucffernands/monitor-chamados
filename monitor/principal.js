@@ -56,8 +56,8 @@ async function monitorarChamados() {
     if (novosChamados.length > 0) {
       const mensagem =
         registro[hoje].length === 0
-          ? "*Chamados existentes hoje:*\n\n"
-          : "*Novos chamados:*\n\n";
+          ? "🌐 Chamados existentes hoje:\n\n"
+          : "🔴 Novos chamados:\n\n";
 
       let texto = mensagem;
 
