@@ -60,8 +60,8 @@ chamados.json → Histórico dos chamados já registrados
 
 🆔 ID: 74300\
 📌 Assunto: Erro no sistema de login\
-⚠️ Estado: Aberton\
-⏰ SLA: Vence em 2h 15m\
+⚠️ Estado: Aberto\
+⏰ SLA: Vence em 2h 15m
 
 ---
 
