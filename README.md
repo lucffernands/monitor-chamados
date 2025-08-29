@@ -36,3 +36,19 @@ on:
   schedule:
     - cron: "*/5 17-23 * * *"  # 14h–20h BRT
     - cron: "*/5 0-2 * * *"    # 21h–23h BRT
+```
+---
+
+Telegram
+
+🔴 Novos chamados
+
+🆔 ID: 12345
+📌 Assunto: Erro no sistema de login
+⚠️ Estado: Aberto
+⏰ SLA: Vence em 2h 15m
+----------
+🆔 ID: 12346
+📌 Assunto: Falha na integração com API
+⚠️ Estado: Em andamento
+⏰ SLA: Vence em 5h 40m
