@@ -9,7 +9,7 @@ function traduzirSLA(sla) {
   if (!sla) return "-";
   return sla
     .replace("On due", "No prazo")
-    .replace("Due in", "Vence em")
+    .replace("Due in", "Vence em") // para textos como "Due in 3h 23m"
     .replace("Overdue", "Vencido");
 }
 
@@ -20,9 +20,8 @@ async function monitorarChamados() {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    args: ["--no-sandbox", "--disable-setuid-sandbox"], // evita problemas no CI/CD
   });
-
   const page = await browser.newPage();
 
   try {
@@ -46,19 +45,6 @@ async function monitorarChamados() {
         registro = {};
       }
     }
-
-    // --- 🔥 Limpeza automática: mantém só os últimos 3 meses ---
-    const tresMesesAtras = new Date();
-    tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3);
-
-    for (const data in registro) {
-      const dataObj = new Date(data);
-      if (dataObj < tresMesesAtras) {
-        delete registro[data];
-      }
-    }
-
-    // --- Se não existir a chave de hoje, cria ---
     if (!registro[hoje]) registro[hoje] = [];
 
     // --- Filtra apenas os novos chamados do dia ---
@@ -75,7 +61,6 @@ async function monitorarChamados() {
 
       let texto = mensagem;
 
-      // Adiciona ao texto e registra ID para não repetir
       novosChamados.forEach((c) => {
         const idNormalizado = c.id.trim();
         texto += `🆔 ID: ${idNormalizado}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n----------\n`;
@@ -90,7 +75,6 @@ async function monitorarChamados() {
     } else {
       console.log("✅ Nenhum chamado novo hoje.");
     }
-
   } catch (err) {
     console.error("❌ Erro no monitor:", err.message);
     await enviarMensagem(`❌ Erro no monitor: ${err.message}`);
