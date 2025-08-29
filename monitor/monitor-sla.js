@@ -30,10 +30,10 @@ async function monitorarSLA() {
     // --- Filtra os que têm SLA "Vence em Xm" ---
     const criticos = todosChamados.filter((c) => {
       if (!c.sla) return false;
-
+      
       const match = c.sla.match(/(\d+)m/); // pega minutos
       if (!match) return false;
-
+      
       const minutos = parseInt(match[1], 10);
       return minutos >= 1 && minutos <= 10;
     });
