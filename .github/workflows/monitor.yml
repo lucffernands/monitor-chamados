@@ -6,8 +6,8 @@ concurrency:
 
 on:
   schedule:
-    - cron: "*/5 17-23 * * *" # 14h-20h no horário de Brasília (UTC+3)
-    - cron: "*/5 0-2 * * *"   # 21h-23h no horário de Brasília (UTC+3)
+    - cron: "*/5 17-23 * * *" # 14h-20h BRT (17h-23h UTC)
+    - cron: "*/5 0-2 * * *"   # Continuação até 02h UTC (23h BRT)
   workflow_dispatch: # permite rodar manualmente
 
 jobs:
@@ -39,10 +39,10 @@ jobs:
           git config user.email "actions@github.com"
           git add chamados.json
           git commit -m "📌 Atualiza chamados.json [skip ci]" || echo "Sem alterações para commitar"
-          git push
+          git pull --rebase origin main
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/lucffernands/monitor-chamados.git HEAD:main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
 
   monitor-sla:
     runs-on: ubuntu-latest
