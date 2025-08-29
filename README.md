@@ -39,7 +39,7 @@ on:
 ```
 ---
 
-Telegram
+📨 Exemplo de mensagem no Telegram
 
 🔴 Novos chamados
 
@@ -52,3 +52,24 @@ Telegram
 📌 Assunto: Falha na integração com API
 ⚠️ Estado: Em andamento
 ⏰ SLA: Vence em 5h 40m
+
+⚠️ Chamados próximos do vencimento
+
+⚠️ Chamados com SLA próximo do vencimento:
+
+🆔 ID: 12400
+📌 Assunto: Instabilidade no servidor
+⚠️ Estado: Aberto
+⏰ SLA: Vence em 12m
+
+
+---
+
+📝 Observações
+
+O histórico (chamados.json) é mantido por até 3 meses para evitar crescimento exagerado.
+
+Se quiser enviar alertas para outros bots ou grupos, basta adicionar novos TELEGRAM_CHAT_ID como variáveis no GitHub Actions.
+
+
+---
