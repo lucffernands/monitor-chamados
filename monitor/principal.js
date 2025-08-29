@@ -9,7 +9,7 @@ function traduzirSLA(sla) {
   if (!sla) return "-";
   return sla
     .replace("On due", "No prazo")
-    .replace("Due in", "Vence em") // para textos como "Due in 3h 23m"
+    .replace("Due in", "Vence em")
     .replace("Overdue", "Vencido");
 }
 
@@ -20,8 +20,9 @@ async function monitorarChamados() {
 
   const browser = await puppeteer.launch({
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"], // evita problemas no CI/CD
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+
   const page = await browser.newPage();
 
   try {
@@ -61,33 +62,41 @@ async function monitorarChamados() {
     if (!registro[hoje]) registro[hoje] = [];
 
     // --- Filtra apenas os novos chamados do dia ---
-const novosChamados = todosChamados.filter((c) => {
-  const idNormalizado = c.id.trim(); // remove espaços extras
-  return !registro[hoje].includes(idNormalizado); // só passa se não estiver no registro
-});
+    const novosChamados = todosChamados.filter((c) => {
+      const idNormalizado = c.id.trim();
+      return !registro[hoje].includes(idNormalizado);
+    });
 
-if (novosChamados.length > 0) {
-  const mensagem =
-    registro[hoje].length === 0
-      ? "🌐 Chamados existentes hoje:\n\n"
-      : "🔴 Novos chamados:\n\n";
+    if (novosChamados.length > 0) {
+      const mensagem =
+        registro[hoje].length === 0
+          ? "🌐 Chamados existentes hoje:\n\n"
+          : "🔴 Novos chamados:\n\n";
 
-  let texto = mensagem;
+      let texto = mensagem;
 
-  // Adiciona ao texto e registra ID para não repetir
-  novosChamados.forEach((c) => {
-    const idNormalizado = c.id.trim();
-    texto += `🆔 ID: ${idNormalizado}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n----------\n`;
-    registro[hoje].push(idNormalizado);
-  });
+      // Adiciona ao texto e registra ID para não repetir
+      novosChamados.forEach((c) => {
+        const idNormalizado = c.id.trim();
+        texto += `🆔 ID: ${idNormalizado}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n----------\n`;
+        registro[hoje].push(idNormalizado);
+      });
 
-  // Salva atualização no JSON **após o forEach**
-  fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
+      // Salva atualização no JSON
+      fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
 
-  await enviarMensagem(texto);
-  console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
-} else {
-  console.log("✅ Nenhum chamado novo hoje.");
+      await enviarMensagem(texto);
+      console.log(`📢 ${novosChamados.length} chamados enviados para Telegram!`);
+    } else {
+      console.log("✅ Nenhum chamado novo hoje.");
+    }
+
+  } catch (err) {
+    console.error("❌ Erro no monitor:", err.message);
+    await enviarMensagem(`❌ Erro no monitor: ${err.message}`);
+  } finally {
+    await browser.close();
+  }
 }
 
 // Para rodar isolado
