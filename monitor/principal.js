@@ -45,6 +45,19 @@ async function monitorarChamados() {
         registro = {};
       }
     }
+
+    // --- 🔥 Limpeza automática: mantém só os últimos 3 meses ---
+    const tresMesesAtras = new Date();
+    tresMesesAtras.setMonth(tresMesesAtras.getMonth() - 3);
+
+    for (const data in registro) {
+      const dataObj = new Date(data);
+      if (dataObj < tresMesesAtras) {
+        delete registro[data];
+      }
+    }
+
+    // --- Se não existir a chave de hoje, cria ---
     if (!registro[hoje]) registro[hoje] = [];
 
     // --- Filtra apenas os novos chamados do dia ---
@@ -67,7 +80,7 @@ async function monitorarChamados() {
         registro[hoje].push(idNormalizado);
       });
 
-      // Salva atualização no JSON
+      // Salva atualização no JSON (já limpo)
       fs.writeFileSync(CAMINHO_JSON, JSON.stringify(registro, null, 2));
 
       await enviarMensagem(texto);
