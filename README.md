@@ -58,10 +58,10 @@ chamados.json → Histórico dos chamados já registrados
 
 🔴 Novos chamados
 
-🆔 ID: 12345n\
-📌 Assunto: Erro no sistema de loginn\
-⚠️ Estado: Aberton\
-⏰ SLA: Vence em 2h 15mn\
+🆔 ID: 74300\n
+📌 Assunto: Erro no sistema de login\n
+⚠️ Estado: Aberton\n
+⏰ SLA: Vence em 2h 15m\n
 
 ---
 
