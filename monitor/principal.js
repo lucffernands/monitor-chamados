@@ -50,7 +50,7 @@ async function monitorarChamados() {
     // --- Filtra apenas os novos chamados do dia ---
     const novosChamados = todosChamados.filter((c) => {
       const idNormalizado = c.id.trim();
-      return !registro[hoje].includes(idNormalizado);
+      return !registro[hoje].includes(idNormalizado) && c.status === "Aberto";
     });
 
     if (novosChamados.length > 0) {
