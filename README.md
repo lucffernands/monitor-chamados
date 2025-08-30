@@ -42,15 +42,25 @@ on:
 
 ## 📂 Estrutura do projeto
 
-monitor/principal.js → Verifica e registra novos chamados
-
-monitor/monitor-sla.js → Verifica SLAs próximos do vencimento
-
-monitor/login.js → Login no sistema
-
-monitor/telegram.js → Envio de mensagens para o Telegram
-
-chamados.json → Histórico dos chamados já registrados
+```
+monitor-chamados/
+│
+├─ monitor/
+│   ├─ principal.js
+│   ├─ monitor-sla.js
+│   ├─ login.js
+│   └─ telegram.js
+│
+├─ chamados.json
+├─ package.json
+├─ package-lock.json
+│
+├─ .github/
+│   └─ workflows/
+│       └─ monitor.yml
+│
+└─ README.md
+```
 
 ---
 
