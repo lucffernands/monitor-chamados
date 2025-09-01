@@ -30,15 +30,21 @@ async function monitorarSLA() {
     // --- Filtra os que têm SLA "Vence em Xm" ---
     const criticos = todosChamados.filter((c) => {
       if (!c.sla) return false;
+
+    // Tenta capturar minutos
+      const matchMin = c.sla.match(/(\d+)m/);
+    // Tenta capturar horas (ex: "1h 20m")
+      const matchHora = c.sla.match(/(\d+)h/);
       
-      const match = c.sla.match(/(\d+)m/); // pega minutos
-      if (!match) return false;
-      
-      const minutos = parseInt(match[1], 10);
-      return minutos >= 1 && minutos <= 10;
+      let minutos = null;
+      if (matchMin) minutos = parseInt(matchMin[1], 10);
+      if (matchHora) minutos = (parseInt(matchHora[1], 10) * 60) + (minutos || 0);
+
+      if (minutos === null) return false;
+      return minutos >= 1 && minutos <= 30;
     });
 
-    if (criticos.length > 0) {
+    if (criticos.length > 0 && <= 30) {
       let texto = "*⚠️ Chamados com SLA próximo do vencimento:*\n\n";
 
       for (const c of criticos) {
