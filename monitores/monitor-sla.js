@@ -1,7 +1,6 @@
 const puppeteer = require("puppeteer");
-const { login } = require("./login");
+const { login, obterChamadosPorUrl } = require("./login");
 const { enviarMensagem } = require("./telegram");
-const { obterChamadosPorUrl } = require("./obterChamados");
 
 function traduzirSLA(sla) {
   if (!sla) return "-";
