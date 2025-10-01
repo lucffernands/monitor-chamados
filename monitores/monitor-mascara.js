@@ -1,12 +1,9 @@
 const puppeteer = require("puppeteer");
-const { login } = require("./login");
+const { login, obterChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
-const { obterChamadosPorUrl } = require("./obterChamados");
-
-const URL_INCIDENTES = "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
 
 async function monitorarMascaraIncidentes() {
-  console.log("😷 Verificando incidentes de máscara...");
+  console.log("🔎 Verificando e-mails nos incidentes (monitor-mascara)...");
 
   const browser = await puppeteer.launch({
     headless: true,
@@ -15,10 +12,18 @@ async function monitorarMascaraIncidentes() {
   const page = await browser.newPage();
 
   try {
+    // --- Login ---
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    const todosChamados = await obterChamadosPorUrl(page, URL_INCIDENTES);
-    console.log(`✅ Chamados extraídos (máscara): ${todosChamados.length}`);
+    // --- Forçar a URL do filtro de incidentes ---
+    await page.goto(
+      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests",
+      { waitUntil: "networkidle2" }
+    );
+
+    // --- Extrair chamados ---
+    const todosChamados = await obterChamados(page);
+    console.log(`✅ Chamados extraídos: ${todosChamados.length}`);
 
     for (const chamado of todosChamados) {
       console.log(`🔎 Verificando chamado ${chamado.id}...`);
@@ -28,7 +33,7 @@ async function monitorarMascaraIncidentes() {
         { waitUntil: "networkidle2" }
       );
 
-      const conteudoChamado = await page.evaluate(() => document.body.innerText);
+      const conteudoChamado = await page.evaluate(() => document.body.innerHTML);
 
       const contemFormulario = conteudoChamado.includes(
         "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"
