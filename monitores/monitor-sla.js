@@ -24,6 +24,12 @@ async function monitorarSLA() {
     // --- Login ---
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
+    // --- Força carregar o filtro de SLA ---
+    await page.goto(
+      "https://servicos.viracopos.com/WOListView.do?viewID=60&globalViewName=All_Requests",
+      { waitUntil: "networkidle2" }
+    );
+
     // --- Extrair chamados ---
     const todosChamados = await obterChamados(page);
 
@@ -31,11 +37,9 @@ async function monitorarSLA() {
     const criticos = todosChamados.filter((c) => {
       if (!c.sla) return false;
 
-    // Tenta capturar minutos
-      const matchMin = c.sla.match(/(\d+)m/);
-    // Tenta capturar horas (ex: "1h 20m")
-      const matchHora = c.sla.match(/(\d+)h/);
-      
+      const matchMin = c.sla.match(/(\d+)m/);  // minutos
+      const matchHora = c.sla.match(/(\d+)h/); // horas
+
       let minutos = null;
       if (matchMin) minutos = parseInt(matchMin[1], 10);
       if (matchHora) minutos = (parseInt(matchHora[1], 10) * 60) + (minutos || 0);
@@ -44,7 +48,7 @@ async function monitorarSLA() {
       return minutos >= 1 && minutos <= 30;
     });
 
-    if (criticos.length > 0 && <= 30) {
+    if (criticos.length > 0) {
       let texto = "*⚠️ Chamados com SLA próximo do vencimento:*\n\n";
 
       for (const c of criticos) {
