@@ -1,5 +1,5 @@
 const puppeteer = require("puppeteer");
-const { login, obterChamados } = require("./login");
+const { login } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
 async function monitorarMascaraIncidentes() {
@@ -12,12 +12,37 @@ async function monitorarMascaraIncidentes() {
   const page = await browser.newPage();
 
   try {
+    // --- Login ---
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    const todosChamados = await obterChamados(page);
+    // --- Força a URL do filtro de incidentes ---
+    await page.goto(
+      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests",
+      { waitUntil: "networkidle2" }
+    );
+
+    // Confirma se o filtro está correto
+    const filtroAtivo = await page.$eval("#filter_name", el => el.innerText.trim());
+    if (filtroAtivo !== "Incidentes") {
+      throw new Error("⚠️ Não foi possível ativar o filtro 'Incidentes'");
+    }
+    console.log("✅ Filtro 'Incidentes' aplicado!");
+
+    // --- Extrai os chamados da tabela ---
+    const todosChamados = await page.$$eval("table tbody tr", rows =>
+      rows.map(r => ({
+        id: r.querySelector("td:nth-child(1)")?.innerText.trim(),
+        assunto: r.querySelector("td:nth-child(2)")?.innerText.trim(),
+        status: r.querySelector("td:nth-child(3)")?.innerText.trim(),
+      }))
+    );
+
     console.log(`✅ Chamados extraídos: ${todosChamados.length}`);
 
+    // --- Valida cada chamado ---
     for (const chamado of todosChamados) {
+      if (!chamado.id) continue; // ignora linhas inválidas
+
       console.log(`🔎 Verificando chamado ${chamado.id}...`);
 
       await page.goto(
