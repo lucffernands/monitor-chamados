@@ -75,18 +75,24 @@ async function login(page, usuario, senha) {
  * Extrai ID, Assunto e Vencimento da lista de chamados
  */
 async function extrairChamados(page) {
+  // Espera até que pelo menos 1 linha apareça
+  await page.waitForFunction(
+    () => document.querySelectorAll("#requests_list_body tr.tc-row").length > 0,
+    { timeout: 60000 }
+  );
+
   return await page.evaluate(() => {
-    return Array.from(document.querySelectorAll("#requests_list_body tr"))
+    return Array.from(document.querySelectorAll("#requests_list_body tr.tc-row"))
       .map((row) => {
         const cols = row.querySelectorAll("td");
-        if (cols.length) {
-          return {
-            id: cols[4]?.innerText.trim() || "",      // coluna 5
-            sla: cols[6]?.innerText.trim() || "",     // coluna 7
-            status: cols[12]?.innerText.trim() || "", // coluna 13
-            assunto: cols[8]?.innerText.trim() || "", // coluna 9
-          };
-        }
+        if (!cols.length) return null;
+
+        return {
+          id: cols[4]?.innerText.trim() || "",
+          sla: cols[6]?.innerText.trim() || "",
+          status: cols[12]?.innerText.trim() || "",
+          assunto: cols[8]?.innerText.trim() || "",
+        };
       })
       .filter(Boolean);
   });
