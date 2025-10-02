@@ -40,7 +40,7 @@ const { enviarMensagem } = require("./telegram");
       // Verifica se contém a frase do formulário
       const contemMascara = await page.evaluate(() => {
         const bodyText = document.body.innerText;
-        return bodyText.includes("Utiliza máscara facial?"); // <-- ajuste aqui a frase exata
+        return bodyText.includes("Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"); // <-- ajuste aqui a frase exata
       });
 
       if (!contemMascara) {
