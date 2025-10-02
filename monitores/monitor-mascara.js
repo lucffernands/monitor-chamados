@@ -1,5 +1,5 @@
 const puppeteer = require("puppeteer");
-const { login, extrairChamados } = require("./login");
+const { login, obterChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
 (async () => {
@@ -24,7 +24,7 @@ const { enviarMensagem } = require("./telegram");
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
 
-    const chamados = await extrairChamados(page);
+    const chamados = await obterChamados(page);
     console.log("✅ Chamados extraídos:", chamados.length);
 
     for (const chamado of chamados) {
