@@ -17,7 +17,7 @@ async function enviarMensagem(texto) {
       text: texto,
       parse_mode: "HTML"
     });
-    console.log("📩 Mensagem enviada:", texto);
+    console.log("📩 Mensagem enviada:");
   } catch (err) {
     console.error("❌ Erro ao enviar mensagem para o Telegram:", err.message);
   }
