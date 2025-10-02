@@ -1,64 +1,54 @@
 const puppeteer = require("puppeteer");
-const { login, obterChamados } = require("./login");
+const { login, extrairChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
-async function monitorarMascaraIncidentes() {
+(async () => {
   console.log("🔎 Verificando e-mails nos incidentes (monitor-mascara)...");
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+
   const page = await browser.newPage();
 
   try {
-    // --- Login ---
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    // --- Forçar a URL do filtro de incidentes ---
-    await page.goto(
-      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests",
-      { waitUntil: "networkidle2", timeout: 120000 }
-    );
+    // URL fixa do filtro incidentes
+    const urlFiltro =
+      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
+    await page.goto(urlFiltro, { waitUntil: "networkidle2", timeout: 120000 });
+    console.log("✅ Lista de chamados carregada:", urlFiltro);
 
-    // --- Extrair chamados ---
-    const chamados = await obterChamados(page);
-    console.log(`✅ Chamados extraídos: ${chamados.length}`);
+    await page.waitForSelector("#requests_list_body", { timeout: 60000 });
+    console.log("✅ Tabela de chamados encontrada");
+
+    const chamados = await extrairChamados(page);
+    console.log("✅ Chamados extraídos:", chamados.length);
 
     for (const chamado of chamados) {
-      console.log(`🔎 Verificando chamado ${chamado.id}...`);
+      const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
+      await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
-      // --- Abre o chamado no detalhe ---
-      await page.goto(
-        `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`,
-        { waitUntil: "networkidle2", timeout: 120000 }
-      );
+      // Verifica se contém a frase do formulário
+      const contemMascara = await page.evaluate(() => {
+        const bodyText = document.body.innerText;
+        return bodyText.includes("Utiliza máscara facial?"); // <-- ajuste aqui a frase exata
+      });
 
-      const conteudoChamado = await page.evaluate(() => document.body.innerText);
-
-      // --- Verifica se contém o formulário esperado ---
-      const contemFormulario = conteudoChamado.includes(
-        "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"
-      );
-
-      if (!contemFormulario) {
-        const texto = `🚨 Incidente sem e-mail padrão!\n🆔 ID: ${chamado.id}\n📌 Assunto: ${chamado.assunto}\n⚠️ Estado: ${chamado.status}`;
-        await enviarMensagem(texto);
-        console.log(`📢 Alerta enviado para Telegram: ${chamado.id}`);
+      if (!contemMascara) {
+        console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
+        await enviarMensagem(
+          `🚨 Chamado ${chamado.id} encontrado sem formulário de máscara!`
+        );
       } else {
-        console.log(`✅ Chamado ${chamado.id} contém o e-mail padrão.`);
+        console.log(`✅ Chamado ${chamado.id} contém formulário de máscara`);
       }
     }
   } catch (err) {
-    console.error("❌ Erro no monitor-mascara:", err.message);
-    await enviarMensagem(`❌ Erro no monitor-mascara: ${err.message}`);
+    console.error("❌ Erro no monitor-mascara:", err);
   } finally {
     await browser.close();
   }
-}
-
-if (require.main === module) {
-  monitorarMascaraIncidentes();
-}
-
-module.exports = { monitorarMascaraIncidentes };
+})();
