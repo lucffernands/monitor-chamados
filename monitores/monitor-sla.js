@@ -1,72 +1,51 @@
 const puppeteer = require("puppeteer");
-const { login, obterChamados } = require("./login");
+const { login, extrairChamados } = require("./login");
 const { enviarMensagem } = require("./telegram");
 
-// mesma tradução usada no principal.js
-function traduzirSLA(texto) {
-  if (!texto) return "-";
-  return texto
-    .replace("Due in", "Vence em")
-    .replace("On due", "No prazo")
-    .replace("Overdue", "Vencido");
-}
-
-async function monitorarSLA() {
-  console.log("🔎 Verificando SLAs próximos do vencimento...");
+(async () => {
+  console.log("🔎 Verificando chamados SLA (monitor-sla)...");
 
   const browser = await puppeteer.launch({
-    headless: true,
+    headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
+
   const page = await browser.newPage();
 
   try {
-    // --- Login ---
+    // 1. Login
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    // --- Força URL fixa do filtro SLA ---
-    const urlSLA = "https://servicos.viracopos.com/WOListView.do?viewID=60&globalViewName=All_Requests";
-    await page.goto(urlSLA, { waitUntil: "networkidle2" });
+    // 2. Abrir a URL fixa do filtro SLA
+    const urlFiltro =
+      "https://servicos.viracopos.com/WOListView.do?viewID=6901&globalViewName=All_Requests"; // <-- ajuste esse viewID para o filtro SLA
+    await page.goto(urlFiltro, { waitUntil: "networkidle2", timeout: 120000 });
+    console.log("✅ Lista de chamados carregada:", urlFiltro);
 
-    // --- Extrair chamados ---
-    const todosChamados = await obterChamados(page);
+    // 3. Esperar a tabela e extrair chamados
+    await page.waitForSelector("#requests_list_body", { timeout: 60000 });
+    console.log("✅ Tabela de chamados encontrada");
 
-    // --- Filtra os que têm SLA "Vence em Xm" ---
-    const criticos = todosChamados.filter((c) => {
-      if (!c.sla) return false;
+    const chamados = await extrairChamados(page);
+    console.log("✅ Chamados extraídos:", chamados.length);
 
-      const matchMin = c.sla.match(/(\d+)m/);
-      const matchHora = c.sla.match(/(\d+)h/);
+    // 4. Validação SLA
+    for (const chamado of chamados) {
+      console.log(`🔎 Validando SLA do chamado ${chamado.id}...`);
 
-      let minutos = 0;
-      if (matchMin) minutos = parseInt(matchMin[1], 10);
-      if (matchHora) minutos = (parseInt(matchHora[1], 10) * 60) + minutos;
-
-      return minutos >= 1 && minutos <= 30;
-    });
-
-    if (criticos.length > 0) {
-      let texto = "*⚠️ Chamados com SLA próximo do vencimento:*\n\n";
-
-      for (const c of criticos) {
-        texto += `🆔 ID: ${c.id}\n📌 Assunto: ${c.assunto}\n⚠️ Estado: ${c.status}\n⏰ SLA: ${traduzirSLA(c.sla)}\n\n`;
+      // Exemplo de regra: alerta se SLA estiver vazio ou vencido
+      if (!chamado.sla || chamado.sla.includes("Vencido")) {
+        const texto = `🚨 SLA crítico!\n🆔 ID: ${chamado.id}\n📌 Assunto: ${chamado.assunto}\n⚠️ Status: ${chamado.status}\n⏰ SLA: ${chamado.sla}`;
+        await enviarMensagem(texto);
+        console.log(`📢 Alerta enviado para Telegram: ${chamado.id}`);
+      } else {
+        console.log(`✅ Chamado ${chamado.id} dentro do SLA: ${chamado.sla}`);
       }
-
-      await enviarMensagem(texto);
-      console.log(`📢 ${criticos.length} chamados críticos enviados para Telegram!`);
-    } else {
-      console.log("✅ Nenhum SLA próximo do vencimento.");
     }
   } catch (err) {
-    console.error("❌ Erro no monitor SLA:", err.message);
-    await enviarMensagem(`❌ Erro no monitor SLA: ${err.message}`);
+    console.error("❌ Erro no monitor-sla:", err.message);
+    await enviarMensagem(`❌ Erro no monitor-sla: ${err.message}`);
   } finally {
     await browser.close();
   }
-}
-
-if (require.main === module) {
-  monitorarSLA();
-}
-
-module.exports = { monitorarSLA };
+})();
