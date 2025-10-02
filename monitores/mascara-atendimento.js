@@ -44,8 +44,15 @@ const { enviarMensagem } = require("./telegram");
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
       await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
-      // Pequeno tempo para permitir carregamento dinâmico das conversas (opcional, curto)
-      await page.waitForTimeout(800);
+      // 🔽 Expande a aba de conversas, se existir
+      try {
+        await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
+        await page.click(".zcollapsiblepanel__header");
+        console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
+        await page.waitForTimeout(800); // aguarda render
+      } catch (e) {
+        console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
+      }
 
       // Validação robusta: procura dentro dos blocos de conversa, faz fallback para body e iframes same-origin
       const contemMascara = await page.evaluate((frase) => {
