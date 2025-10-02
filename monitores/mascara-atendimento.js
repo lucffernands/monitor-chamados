@@ -25,6 +25,12 @@ const { enviarMensagem } = require("./telegram");
     console.log("✅ Tabela de chamados encontrada");
 
     const chamados = await obterChamados(page);
+
+    if (chamados.length === 0) {
+      console.log("ℹ️ Nenhum chamado encontrado no filtro. Encerrando monitor...");
+      return; // finaliza sem erro
+    }
+
     console.log("✅ Chamados extraídos:", chamados.length);
 
     for (const chamado of chamados) {
