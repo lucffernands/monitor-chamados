@@ -24,6 +24,7 @@ const { enviarMensagem } = require("./telegram");
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
 
+    // 🔎 Extração já deve filtrar solicitantes que não começam com "LD"
     const chamados = await obterChamados(page);
 
     if (chamados.length === 0) {
@@ -33,24 +34,70 @@ const { enviarMensagem } = require("./telegram");
 
     console.log("✅ Chamados extraídos:", chamados.length);
 
+    // Lista para armazenar os que estão sem formulário
+    let chamadosSemMascara = [];
+
+    // frase exata (em minúsculas para comparação)
+    const fraseFormulario = "para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:";
+
     for (const chamado of chamados) {
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
       await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
-      // Verifica se contém a frase do formulário
-      const contemMascara = await page.evaluate(() => {
-        const bodyText = document.body.innerText;
-        return bodyText.includes("Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"); // <-- ajuste aqui a frase exata
-      });
+      // Pequeno tempo para permitir carregamento dinâmico das conversas (opcional, curto)
+      await page.waitForTimeout(800);
+
+      // Validação robusta: procura dentro dos blocos de conversa, faz fallback para body e iframes same-origin
+      const contemMascara = await page.evaluate((frase) => {
+        const normalize = s => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const target = normalize(frase);
+
+        // 1) verifica blocos de conversa específicos
+        const convEls = Array.from(document.querySelectorAll("#conversation-holder .req-des"));
+        if (convEls.length > 0) {
+          for (const el of convEls) {
+            const txt = normalize(el.innerText);
+            if (txt.includes(target)) return true;
+          }
+        }
+
+        // 2) fallback para todo o body
+        const bodyTxt = normalize(document.body && document.body.innerText);
+        if (bodyTxt && bodyTxt.includes(target)) return true;
+
+        // 3) checa iframes same-origin (ignora cross-origin)
+        const iframes = Array.from(document.querySelectorAll("iframe"));
+        for (const iframe of iframes) {
+          try {
+            const doc = iframe.contentDocument;
+            if (doc && doc.body) {
+              const ftxt = normalize(doc.body.innerText);
+              if (ftxt.includes(target)) return true;
+            }
+          } catch (e) {
+            // iframe cross-origin -> não acessível, ignora
+          }
+        }
+
+        return false;
+      }, fraseFormulario);
 
       if (!contemMascara) {
         console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
-        await enviarMensagem(
-          `🚨 Chamado ${chamado.id} encontrado sem formulário de máscara!`
-        );
+        chamadosSemMascara.push(chamado.id);
       } else {
         console.log(`✅ Chamado ${chamado.id} contém formulário de máscara`);
       }
+    }
+
+    // 🚨 Envia alerta consolidado (um único por workflow)
+    if (chamadosSemMascara.length > 0) {
+      const lista = chamadosSemMascara.join(", ");
+      const msg = `🚨 Chamados encontrados sem formulário de máscara: ${lista}`;
+      console.log(msg);
+      await enviarMensagem(msg);
+    } else {
+      console.log("✅ Todos os chamados possuem formulário de máscara!");
     }
   } catch (err) {
     console.error("❌ Erro no monitor-mascara:", err);
