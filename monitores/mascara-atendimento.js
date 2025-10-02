@@ -15,7 +15,6 @@ const { enviarMensagem } = require("./telegram");
   try {
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    // URL fixa do filtro incidentes
     const urlFiltro =
       "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
     await page.goto(urlFiltro, { waitUntil: "networkidle2", timeout: 120000 });
@@ -24,20 +23,17 @@ const { enviarMensagem } = require("./telegram");
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
 
-    // 🔎 Extração já deve filtrar solicitantes que não começam com "LD"
     const chamados = await obterChamados(page);
 
     if (chamados.length === 0) {
       console.log("ℹ️ Nenhum chamado encontrado no filtro. Encerrando monitor...");
-      return; // finaliza sem erro
+      return;
     }
 
     console.log("✅ Chamados extraídos:", chamados.length);
 
-    // Lista para armazenar os que estão sem formulário
     let chamadosSemMascara = [];
 
-    // frase exata (em minúsculas para comparação)
     const fraseFormulario = "para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:";
 
     for (const chamado of chamados) {
@@ -49,41 +45,41 @@ const { enviarMensagem } = require("./telegram");
         await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
         await page.click(".zcollapsiblepanel__header");
         console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
-        await page.waitForTimeout(800); // aguarda render
+        await page.waitForTimeout(800);
       } catch (e) {
         console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
       }
 
-      // Validação robusta: procura dentro dos blocos de conversa, faz fallback para body e iframes same-origin
+      // 🔽 Torna conteúdos escondidos visíveis temporariamente para leitura
+      await page.evaluate(() => {
+        document.querySelectorAll('z-cpcontent').forEach(el => el.style.display = 'block');
+      });
+
       const contemMascara = await page.evaluate((frase) => {
         const normalize = s => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
         const target = normalize(frase);
 
         // 1) verifica blocos de conversa específicos
         const convEls = Array.from(document.querySelectorAll("#conversation-holder .req-des"));
-        if (convEls.length > 0) {
-          for (const el of convEls) {
-            const txt = normalize(el.innerText);
-            if (txt.includes(target)) return true;
-          }
+        for (const el of convEls) {
+          const txt = normalize(el.innerText || el.textContent);
+          if (txt.includes(target)) return true;
         }
 
-        // 2) fallback para todo o body
-        const bodyTxt = normalize(document.body && document.body.innerText);
-        if (bodyTxt && bodyTxt.includes(target)) return true;
+        // 2) fallback para body
+        const bodyTxt = normalize(document.body && (document.body.innerText || document.body.textContent));
+        if (bodyTxt.includes(target)) return true;
 
-        // 3) checa iframes same-origin (ignora cross-origin)
+        // 3) checa iframes same-origin
         const iframes = Array.from(document.querySelectorAll("iframe"));
         for (const iframe of iframes) {
           try {
             const doc = iframe.contentDocument;
             if (doc && doc.body) {
-              const ftxt = normalize(doc.body.innerText);
+              const ftxt = normalize(doc.body.innerText || doc.body.textContent);
               if (ftxt.includes(target)) return true;
             }
-          } catch (e) {
-            // iframe cross-origin -> não acessível, ignora
-          }
+          } catch (e) {}
         }
 
         return false;
@@ -97,7 +93,6 @@ const { enviarMensagem } = require("./telegram");
       }
     }
 
-    // 🚨 Envia alerta consolidado (um único por workflow)
     if (chamadosSemMascara.length > 0) {
       const lista = chamadosSemMascara.join(", ");
       const msg = `🚨 Chamados encontrados sem formulário de máscara: ${lista}`;
