@@ -16,37 +16,37 @@ async function monitorarMascaraIncidentes() {
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
     // --- Forçar a URL do filtro de incidentes ---
-    const urlFiltroIncidentes = "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
-    await page.goto(urlFiltroIncidentes, { waitUntil: "networkidle2" });
+    await page.goto(
+      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests",
+      { waitUntil: "networkidle2", timeout: 120000 }
+    );
 
     // --- Extrair chamados ---
-    const todosChamados = await obterChamados(page);
-    console.log(`✅ Chamados extraídos: ${todosChamados.length}`);
+    const chamados = await obterChamados(page);
+    console.log(`✅ Chamados extraídos: ${chamados.length}`);
 
-    for (const chamado of todosChamados) {
-      try {
-        console.log(`🔎 Verificando chamado ${chamado.id}...`);
+    for (const chamado of chamados) {
+      console.log(`🔎 Verificando chamado ${chamado.id}...`);
 
-        await page.goto(
-          `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}`,
-          { waitUntil: "networkidle2" }
-        );
+      // --- Abre o chamado no detalhe ---
+      await page.goto(
+        `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`,
+        { waitUntil: "networkidle2", timeout: 120000 }
+      );
 
-        const conteudoChamado = await page.evaluate(() => document.body.innerHTML);
+      const conteudoChamado = await page.evaluate(() => document.body.innerText);
 
-        const contemFormulario = conteudoChamado.includes(
-          "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"
-        );
+      // --- Verifica se contém o formulário esperado ---
+      const contemFormulario = conteudoChamado.includes(
+        "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:"
+      );
 
-        if (!contemFormulario) {
-          const texto = `🚨 Incidente sem e-mail padrão!\n🆔 ID: ${chamado.id}\n📌 Assunto: ${chamado.assunto}\n⚠️ Estado: ${chamado.status}`;
-          await enviarMensagem(texto);
-          console.log(`📢 Alerta enviado para Telegram: ${chamado.id}`);
-        } else {
-          console.log(`✅ Chamado ${chamado.id} contém o e-mail padrão.`);
-        }
-      } catch (err) {
-        console.warn(`⚠️ Falha ao processar chamado ${chamado.id}: ${err.message}`);
+      if (!contemFormulario) {
+        const texto = `🚨 Incidente sem e-mail padrão!\n🆔 ID: ${chamado.id}\n📌 Assunto: ${chamado.assunto}\n⚠️ Estado: ${chamado.status}`;
+        await enviarMensagem(texto);
+        console.log(`📢 Alerta enviado para Telegram: ${chamado.id}`);
+      } else {
+        console.log(`✅ Chamado ${chamado.id} contém o e-mail padrão.`);
       }
     }
   } catch (err) {
