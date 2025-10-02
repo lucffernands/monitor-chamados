@@ -1,15 +1,16 @@
-// monitores/login.js
 const puppeteer = require("puppeteer");
 
 async function login(page, usuario, senha) {
   console.log("🌐 Abrindo página inicial...");
 
+  // Abre a página inicial
   await page.goto("https://servicos.viracopos.com", {
     waitUntil: "domcontentloaded",
     timeout: 120000,
   });
   console.log("✅ Página inicial carregada:", page.url());
 
+  // --- Clica no SAML (sempre presente) ---
   try {
     await page.waitForSelector("a.sign-saml", { timeout: 60000 });
     await page.click("a.sign-saml");
@@ -18,9 +19,12 @@ async function login(page, usuario, senha) {
     console.warn("⚠️ Botão SAML não encontrado, continuando...");
   }
 
-  await page.waitForTimeout(2000);
+  // --- Espera redirecionar para Microsoft Login ou portal ESM ---
+  await page.waitForTimeout(2000); // pequeno delay para carregar
 
   const urlAtual = page.url();
+
+  // --- Caso apareça login Microsoft ---
   if (urlAtual.includes("login.microsoftonline.com")) {
     console.log("🌐 Página de login Microsoft detectada");
 
@@ -30,7 +34,7 @@ async function login(page, usuario, senha) {
       console.log("✅ Usuário digitado");
 
       await page.click("input[type='submit']");
-      await page.waitForTimeout(2000);
+      await page.waitForTimeout(2000); // aguarda avançar
 
       await page.waitForSelector("input[name='passwd']", { timeout: 60000 });
       await page.type("input[name='passwd']", senha);
@@ -39,6 +43,7 @@ async function login(page, usuario, senha) {
       await page.click("input[type='submit']");
       console.log("✅ Login Microsoft enviado");
 
+      // Aguarda redirecionar
       await page.waitForNavigation({ waitUntil: "networkidle0", timeout: 120000 });
       console.log("✅ Redirecionado após login Microsoft:", page.url());
     } catch (err) {
@@ -49,7 +54,21 @@ async function login(page, usuario, senha) {
     console.log("🌐 Sessão ativa ou portal direto:", urlAtual);
   }
 
-  console.log("✅ Login concluído - pronto para navegar para a view desejada.");
+  // --- Força ir para lista de chamados ---
+  await page.goto("https://servicos.viracopos.com/WOListView.do", {
+    waitUntil: "networkidle0",
+    timeout: 120000,
+  });
+  console.log("✅ Lista de chamados carregada:", page.url());
+
+  // --- Aguarda tabela de chamados ---
+  try {
+    await page.waitForSelector("#requests_list_body", { timeout: 60000 });
+    console.log("✅ Tabela de chamados encontrada");
+  } catch (err) {
+    console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
+    await page.screenshot({ path: "debug_table.png" });
+  }
 }
 
 /**
@@ -62,10 +81,10 @@ async function extrairChamados(page) {
         const cols = row.querySelectorAll("td");
         if (cols.length) {
           return {
-            id: cols[4]?.innerText.trim() || "",
-            sla: cols[6]?.innerText.trim() || "",
-            status: cols[12]?.innerText.trim() || "",
-            assunto: cols[8]?.innerText.trim() || "",
+            id: cols[4]?.innerText.trim() || "",      // coluna 5
+            sla: cols[6]?.innerText.trim() || "",     // coluna 7
+            status: cols[12]?.innerText.trim() || "", // coluna 13
+            assunto: cols[8]?.innerText.trim() || "", // coluna 9
           };
         }
       })
@@ -73,4 +92,4 @@ async function extrairChamados(page) {
   });
 }
 
-module.exports = { login, extrairChamados };
+module.exports = { login, obterChamados: extrairChamados };
