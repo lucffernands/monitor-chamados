@@ -59,7 +59,7 @@ async function login(page, usuario, senha) {
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
   } catch (err) {
-    console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
+    //console.warn("⚠️ Tabela de chamados não encontrada, veja browser aberto.");
     await page.screenshot({ path: "debug_table.png" });
   }
 }
