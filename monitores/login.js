@@ -87,12 +87,16 @@ async function extrairChamados(page) {
         const cols = row.querySelectorAll("td");
         if (!cols.length) return null;
 
-        return {
-          id: cols[4]?.innerText.trim() || "",
-          sla: cols[6]?.innerText.trim() || "",
-          status: cols[12]?.innerText.trim() || "",
-          assunto: cols[8]?.innerText.trim() || "",
-        };
+        const id = cols[4]?.innerText.trim() || "";
+        const sla = cols[6]?.innerText.trim() || "";
+        const status = cols[12]?.innerText.trim() || "";
+        const assunto = cols[8]?.innerText.trim() || "";
+        const solicitante = cols[9]?.innerText.trim() || "";
+
+        // Filtra solicitantes que não começam com "LD"
+        if (solicitante.startsWith("LD")) return null;
+
+        return { id, sla, status, assunto, solicitante };
       })
       .filter(Boolean);
   });
