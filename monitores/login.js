@@ -54,13 +54,6 @@ async function login(page, usuario, senha) {
     console.log("🌐 Sessão ativa ou portal direto:", urlAtual);
   }
 
-  // --- Força ir para lista de chamados ---
-  await page.goto("https://servicos.viracopos.com/WOListView.do", {
-    waitUntil: "networkidle0",
-    timeout: 120000,
-  });
-  console.log("✅ Lista de chamados carregada:", page.url());
-
   // --- Aguarda tabela de chamados ---
   try {
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
