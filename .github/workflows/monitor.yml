@@ -35,7 +35,7 @@ jobs:
       #     TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
       - name: 🚀 Rodar monitor mascara-atendimento
-        run: node monitores/mascara-atentimento.js
+        run: node monitores/mascara-atendimento.js
         env:
           MS_USER: ${{ secrets.MS_USER }}
           MS_PASS: ${{ secrets.MS_PASS }}
