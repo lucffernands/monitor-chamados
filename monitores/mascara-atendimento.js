@@ -32,43 +32,45 @@ const { enviarMensagem } = require("./telegram");
 
     console.log("✅ Chamados extraídos:", chamados.length);
 
+    const regexFormulario = /nos responda com as seguintes informações/i;
     let chamadosSemMascara = [];
-
-    // trecho do formulário
-    const regexFormulario = /nos responda com as seguintes informaç(ões|oes)/i;
 
     for (const chamado of chamados) {
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
       await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
+      // 🔽 Expande todas as abas de conversas
       try {
-        await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
-        await page.click(".zcollapsiblepanel__header");
-        console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
-        await page.waitForTimeout(1000);
-      } catch (e) {
-        console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
+        const headers = await page.$$(".zcollapsiblepanel__header");
+        for (const header of headers) {
+          const isExpanded = await header.evaluate(el => el.getAttribute("aria-expanded") === "true");
+          if (!isExpanded) {
+            await header.click();
+            await page.waitForTimeout(500); // aguarda renderizar conteúdo
+          }
+        }
+        console.log(`📝 Todas as conversas expandidas no chamado ${chamado.id}`);
+      } catch {
+        console.log(`ℹ️ Não foi possível expandir todas as conversas no chamado ${chamado.id}`);
       }
 
-      // 🔍 Log do texto capturado no body
-      const dumpText = await page.evaluate(() => {
-        return (document.body.innerText || "").replace(/\s+/g, " ").trim();
-      });
-      console.log(`🔍 Texto capturado no chamado ${chamado.id}:`);
-      console.log(dumpText.slice(0, 500)); // só primeiros 500 chars para não poluir
+      // 🔽 Varre todos os iframes para encontrar o formulário
+      const frames = page.frames();
+      let contemMascara = false;
 
-      // 🔍 Log de iframes
-      const frames = page.frames().map(f => f.url());
-      console.log("🖼️ Iframes encontrados:", frames);
+      for (const frame of frames) {
+        try {
+          contemMascara = await frame.evaluate((regexSource) => {
+            const contents = Array.from(document.querySelectorAll("z-cpcontent.zcollapsiblepanel__content"));
+            let textoTotal = contents.map(c => c.innerText || "").join(" ").replace(/\s+/g, " ");
+            return new RegExp(regexSource, "i").test(textoTotal);
+          }, regexFormulario.source);
 
-      // 🔎 Verificação no body principal (por enquanto)
-      const contemMascara = await page.evaluate((regexSource) => {
-        const texto = (document.body.innerText || "")
-          .replace(/\s+/g, " ")
-          .toLowerCase();
-        const regex = new RegExp(regexSource, "i");
-        return regex.test(texto);
-      }, regexFormulario.source);
+          if (contemMascara) break; // se encontrou, não precisa verificar mais frames
+        } catch {
+          // ignora frames inacessíveis
+        }
+      }
 
       if (!contemMascara) {
         console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
@@ -78,6 +80,7 @@ const { enviarMensagem } = require("./telegram");
       }
     }
 
+    // 🚨 Envia alerta consolidado para Telegram
     if (chamadosSemMascara.length > 0) {
       const lista = chamadosSemMascara.join(", ");
       const msg = `🚨 Chamados encontrados sem formulário de máscara: ${lista}`;
