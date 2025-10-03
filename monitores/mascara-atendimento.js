@@ -15,7 +15,6 @@ const { enviarMensagem } = require("./telegram");
   try {
     await login(page, process.env.MS_USER, process.env.MS_PASS);
 
-    // URL fixa do filtro incidentes
     const urlFiltro =
       "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
     await page.goto(urlFiltro, { waitUntil: "networkidle2", timeout: 120000 });
@@ -24,47 +23,40 @@ const { enviarMensagem } = require("./telegram");
     await page.waitForSelector("#requests_list_body", { timeout: 60000 });
     console.log("✅ Tabela de chamados encontrada");
 
-    // 🔎 Extração já deve filtrar solicitantes que não começam com "LD"
     const chamados = await obterChamados(page);
 
     if (chamados.length === 0) {
       console.log("ℹ️ Nenhum chamado encontrado no filtro. Encerrando monitor...");
-      return; // finaliza sem erro
+      return;
     }
 
     console.log("✅ Chamados extraídos:", chamados.length);
 
-    // Lista para armazenar os que estão sem formulário
     let chamadosSemMascara = [];
 
-    // frase exata do formulário (copiada do HTML)
-    const fraseFormulario = "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:";
+    // trecho específico do formulário
+    const regexFormulario = /nos responda com as seguintes informaç(ões|oes)/i;
 
     for (const chamado of chamados) {
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
       await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
-      // 🔽 Expande a aba de conversas, se existir
       try {
         await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
         await page.click(".zcollapsiblepanel__header");
         console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
-        await page.waitForTimeout(1000); // aguarda renderizar
+        await page.waitForTimeout(1000);
       } catch (e) {
         console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
       }
 
-      // ✅ Verificação apenas em spans .size (onde o formulário é renderizado)
-      const contemMascara = await page.evaluate((frase) => {
-        const spans = Array.from(document.querySelectorAll("span.size"));
-        for (const el of spans) {
-          const txt = (el.innerText || "").replace(/\s+/g, " ").trim();
-          if (txt.includes(frase)) {
-            return true;
-          }
-        }
-        return false;
-      }, fraseFormulario);
+      const contemMascara = await page.evaluate((regexSource) => {
+        const texto = (document.body.innerText || "")
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+        const regex = new RegExp(regexSource, "i");
+        return regex.test(texto);
+      }, regexFormulario.source);
 
       if (!contemMascara) {
         console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
@@ -74,7 +66,6 @@ const { enviarMensagem } = require("./telegram");
       }
     }
 
-    // 🚨 Envia alerta consolidado (um único por workflow)
     if (chamadosSemMascara.length > 0) {
       const lista = chamadosSemMascara.join(", ");
       const msg = `🚨 Chamados encontrados sem formulário de máscara: ${lista}`;
