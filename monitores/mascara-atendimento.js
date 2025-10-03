@@ -40,50 +40,123 @@ const { enviarMensagem } = require("./telegram");
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
       await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
 
-      // 🔽 Expande a aba de conversas, se existir
+      // --- 1) Tenta expandir os painéis de conversa colapsados (executado no contexto da página)
       try {
-        await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
-        await page.click(".zcollapsiblepanel__header");
-        console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
-        await page.waitForTimeout(800);
+        await page.waitForSelector("#conversation-holder", { timeout: 5000 });
+        await page.evaluate(() => {
+          // para cada painel, se o conteúdo estiver escondido, clicar no header para expandir
+          const panels = Array.from(document.querySelectorAll("z-collapsiblepanel, .zcollapsiblepanel"));
+          panels.forEach(p => {
+            const header = p.querySelector(".zcollapsiblepanel__header");
+            const content = p.querySelector(".zcollapsiblepanel__content, z-cpcontent");
+            try {
+              const computed = content ? window.getComputedStyle(content).display : null;
+              if (header && content && (content.style.display === "none" || computed === "none")) {
+                // click via JS (mesmo que haja handlers customizados)
+                header.click();
+              }
+            } catch (e) {
+              // ignore
+            }
+          });
+        });
+        // deixa um curto tempo para render do painel expandido
+        await page.waitForTimeout(600);
       } catch (e) {
-        console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
+        console.log(`ℹ️ conversation-holder não disponível/expansão ignorada no chamado ${chamado.id}`);
       }
 
-      // 🔽 Torna conteúdos escondidos visíveis temporariamente para leitura
-      await page.evaluate(() => {
-        document.querySelectorAll('z-cpcontent').forEach(el => el.style.display = 'block');
-      });
+      // --- 2) Função robusta de detecção (tentativa com waitForFunction)
+      const checkFraseFn = (frase) => {
+        const normalize = s => (s || "")
+          .replace(/\u00A0/g, " ")        // NBSP -> space
+          .replace(/\u200B/g, "")         // zero-width
+          .replace(/&nbsp;/gi, " ")
+          .replace(/<br\s*\/?>/gi, " ")
+          .replace(/<\/?[^>]+>/g, " ")    // remove tags se estiver usando innerHTML
+          .replace(/\s+/g, " ")
+          .trim()
+          .toLowerCase();
 
-      const contemMascara = await page.evaluate((frase) => {
-        const normalize = s => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
         const target = normalize(frase);
 
-        // 1) verifica blocos de conversa específicos
+        // 1) checa blocos de conversa (#conversation-holder .req-des)
         const convEls = Array.from(document.querySelectorAll("#conversation-holder .req-des"));
         for (const el of convEls) {
-          const txt = normalize(el.innerText || el.textContent);
+          const txt = normalize(el.innerText || el.textContent || el.innerHTML || "");
           if (txt.includes(target)) return true;
         }
 
-        // 2) fallback para body
-        const bodyTxt = normalize(document.body && (document.body.innerText || document.body.textContent));
+        // 2) checa todos os z-cpcontent (conteúdos de painel), por via das dúvidas
+        const cpEls = Array.from(document.querySelectorAll("z-cpcontent, .zcollapsiblepanel__content"));
+        for (const el of cpEls) {
+          const txt = normalize(el.innerText || el.textContent || el.innerHTML || "");
+          if (txt.includes(target)) return true;
+        }
+
+        // 3) fallback para body
+        const bodyTxt = normalize(document.body && (document.body.innerText || document.body.textContent || document.body.innerHTML || ""));
         if (bodyTxt.includes(target)) return true;
 
-        // 3) checa iframes same-origin
+        // 4) checa iframes same-origin
         const iframes = Array.from(document.querySelectorAll("iframe"));
         for (const iframe of iframes) {
           try {
             const doc = iframe.contentDocument;
             if (doc && doc.body) {
-              const ftxt = normalize(doc.body.innerText || doc.body.textContent);
+              const ftxt = normalize(doc.body.innerText || doc.body.textContent || doc.body.innerHTML || "");
               if (ftxt.includes(target)) return true;
             }
-          } catch (e) {}
+          } catch (e) {
+            // cross-origin -> ignorar
+          }
         }
 
         return false;
-      }, fraseFormulario);
+      };
+
+      // tenta com waitForFunction (rápido)
+      let contemMascara = false;
+      try {
+        await page.waitForFunction(checkFraseFn, { timeout: 3000 }, fraseFormulario);
+        contemMascara = true;
+      } catch (err) {
+        // não encontrou na primeira tentativa -> tenta forçar display:block em z-cpcontent e re-tentar
+        try {
+          await page.evaluate(() => {
+            document.querySelectorAll('z-cpcontent, .zcollapsiblepanel__content').forEach(el => {
+              try { el.style.display = 'block'; } catch (e) {}
+            });
+          });
+          // curto tempo para render
+          await page.waitForTimeout(400);
+          try {
+            await page.waitForFunction(checkFraseFn, { timeout: 2000 }, fraseFormulario);
+            contemMascara = true;
+          } catch (err2) {
+            contemMascara = false;
+          }
+        } catch (e) {
+          contemMascara = false;
+        }
+      }
+
+      // --- 3) se ainda não encontrou, coleto debug curto (3 blocos) e screenshot para investigação
+      if (!contemMascara) {
+        try {
+          const sample = await page.$$eval("#conversation-holder .req-des", els =>
+            els.slice(0, 3).map(e => ({
+              innerText: (e.innerText || "").slice(0, 800),
+              innerHTML: (e.innerHTML || "").slice(0, 800)
+            }))
+          );
+          console.log(`DEBUG: amostra de conversas (chamado ${chamado.id}):`, sample);
+          // screenshot (arquivo único por chamado)
+          await page.screenshot({ path: `debug_chamado_${chamado.id}.png`, fullPage: true });
+        } catch (dbgErr) {
+          console.log(`ℹ️ Falha ao gerar debug do chamado ${chamado.id}: ${dbgErr.message}`);
+        }
+      }
 
       if (!contemMascara) {
         console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
