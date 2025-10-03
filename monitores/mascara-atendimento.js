@@ -1,97 +1,59 @@
-const puppeteer = require("puppeteer");
-const { login, obterChamados } = require("./login");
-const { enviarMensagem } = require("./telegram");
+// === Verificação do formulário de máscara ===
 
-(async () => {
-  console.log("🔎 Verificando e-mails nos incidentes (monitor-mascara)...");
+// frase normalizada que procuramos (sem acentos, minúscula)
+const targetNormalized = "nos responda com as seguintes informacoes";
 
-  const browser = await puppeteer.launch({
-    headless: "new",
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
+// espera extra para o conteúdo carregar
+await page.waitForTimeout(1000);
 
-  const page = await browser.newPage();
+// varre todos os frames da página
+const frames = page.frames();
+let contemMascara = false;
+const framesChecked = []; // debug em caso de falso positivo
+
+for (const frame of frames) {
+  // tenta esperar por seletor relevante dentro do frame
+  try {
+    await frame.waitForSelector(
+      'z-cpcontent, .zcollapsiblepanel__content, .req-des, .panel-body, span.size',
+      { timeout: 1200 }
+    );
+  } catch (e) {
+    // não achou nada a tempo, segue para tentar capturar texto assim mesmo
+  }
 
   try {
-    await login(page, process.env.MS_USER, process.env.MS_PASS);
+    const text = await frame.evaluate(() => {
+      const sel = Array.from(document.querySelectorAll(
+        'z-cpcontent, .zcollapsiblepanel__content, .req-des, .panel-body, span.size'
+      ));
+      const raw = sel.map(el => (el.innerText || el.textContent || '')).join(' ');
+      return raw
+        .replace(/\s+/g, ' ')                   // normaliza espaços
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+        .toLowerCase();
+    });
 
-    const urlFiltro =
-      "https://servicos.viracopos.com/WOListView.do?viewID=6902&globalViewName=All_Requests";
-    await page.goto(urlFiltro, { waitUntil: "networkidle2", timeout: 120000 });
-    console.log("✅ Lista de chamados carregada:", urlFiltro);
+    framesChecked.push({ url: frame.url(), snippet: text.slice(0, 200) });
 
-    await page.waitForSelector("#requests_list_body", { timeout: 60000 });
-    console.log("✅ Tabela de chamados encontrada");
-
-    const chamados = await obterChamados(page);
-
-    if (chamados.length === 0) {
-      console.log("ℹ️ Nenhum chamado encontrado no filtro. Encerrando monitor...");
-      return;
+    if (text.includes(targetNormalized)) {
+      contemMascara = true;
+      break;
     }
-
-    console.log("✅ Chamados extraídos:", chamados.length);
-
-    const regexFormulario = /nos responda com as seguintes informações/i;
-    let chamadosSemMascara = [];
-
-    for (const chamado of chamados) {
-      const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
-      await page.goto(urlChamado, { waitUntil: "networkidle2", timeout: 120000 });
-
-      // 🔽 Expande todas as abas de conversas
-      try {
-        const headers = await page.$$(".zcollapsiblepanel__header");
-        for (const header of headers) {
-          const isExpanded = await header.evaluate(el => el.getAttribute("aria-expanded") === "true");
-          if (!isExpanded) {
-            await header.click();
-            await page.waitForTimeout(500); // aguarda renderizar conteúdo
-          }
-        }
-        console.log(`📝 Todas as conversas expandidas no chamado ${chamado.id}`);
-      } catch {
-        console.log(`ℹ️ Não foi possível expandir todas as conversas no chamado ${chamado.id}`);
-      }
-
-      // 🔽 Varre todos os iframes para encontrar o formulário
-      const frames = page.frames();
-      let contemMascara = false;
-
-      for (const frame of frames) {
-        try {
-          contemMascara = await frame.evaluate((regexSource) => {
-            const contents = Array.from(document.querySelectorAll("z-cpcontent.zcollapsiblepanel__content"));
-            let textoTotal = contents.map(c => c.innerText || "").join(" ").replace(/\s+/g, " ");
-            return new RegExp(regexSource, "i").test(textoTotal);
-          }, regexFormulario.source);
-
-          if (contemMascara) break; // se encontrou, não precisa verificar mais frames
-        } catch {
-          // ignora frames inacessíveis
-        }
-      }
-
-      if (!contemMascara) {
-        console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara`);
-        chamadosSemMascara.push(chamado.id);
-      } else {
-        console.log(`✅ Chamado ${chamado.id} contém formulário de máscara`);
-      }
-    }
-
-    // 🚨 Envia alerta consolidado para Telegram
-    if (chamadosSemMascara.length > 0) {
-      const lista = chamadosSemMascara.join(", ");
-      const msg = `🚨 Chamados encontrados sem formulário de máscara: ${lista}`;
-      console.log(msg);
-      await enviarMensagem(msg);
-    } else {
-      console.log("✅ Todos os chamados possuem formulário de máscara!");
-    }
-  } catch (err) {
-    console.error("❌ Erro no monitor-mascara:", err);
-  } finally {
-    await browser.close();
+  } catch (e) {
+    framesChecked.push({ url: frame.url(), error: e.message });
+    continue;
   }
-})();
+}
+
+// se não encontrou, loga detalhes para debug
+if (!contemMascara) {
+  console.log(`⚠️ Chamado ${chamado.id} sem formulário de máscara — frames verificados:`);
+  framesChecked.forEach((f, i) => {
+    if (f.error) {
+      console.log(`  [${i}] ${f.url} (error: ${f.error})`);
+    } else {
+      console.log(`  [${i}] ${f.url} (snippet: ${f.snippet.replace(/\n/g,' ')})`);
+    }
+  });
+}
