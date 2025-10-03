@@ -37,8 +37,8 @@ const { enviarMensagem } = require("./telegram");
     // Lista para armazenar os que estão sem formulário
     let chamadosSemMascara = [];
 
-    // frase exata (em minúsculas para comparação)
-    const fraseFormulario = "para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:";
+    // frase exata do formulário (copiada do HTML)
+    const fraseFormulario = "Para que possamos dar andamento na sua solicitação, por favor, nos responda com as seguintes informações:";
 
     for (const chamado of chamados) {
       const urlChamado = `https://servicos.viracopos.com/WorkOrder.do?woMode=viewWO&woID=${chamado.id}&PORTALID=1`;
@@ -49,25 +49,20 @@ const { enviarMensagem } = require("./telegram");
         await page.waitForSelector(".zcollapsiblepanel__header", { timeout: 5000 });
         await page.click(".zcollapsiblepanel__header");
         console.log(`📝 Conversas expandidas no chamado ${chamado.id}`);
-        await page.waitForTimeout(800); // aguarda render
+        await page.waitForTimeout(1000); // aguarda renderizar
       } catch (e) {
         console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
       }
 
-      // ✅ Nova validação: procura especificamente no span.size dentro do conteúdo expandido
+      // ✅ Verificação apenas em spans .size (onde o formulário é renderizado)
       const contemMascara = await page.evaluate((frase) => {
-        const normalize = s => (s || "").replace(/\s+/g, " ").trim().toLowerCase();
-        const alvo = normalize(frase);
-
-        // pega todos os spans de conversa
-        const spans = Array.from(document.querySelectorAll("z-cpcontent.zcollapsiblepanel__content span.size"));
-        for (const span of spans) {
-          const txt = normalize(span.innerText);
-          if (txt.includes(alvo)) {
+        const spans = Array.from(document.querySelectorAll("span.size"));
+        for (const el of spans) {
+          const txt = (el.innerText || "").replace(/\s+/g, " ").trim();
+          if (txt.includes(frase)) {
             return true;
           }
         }
-
         return false;
       }, fraseFormulario);
 
