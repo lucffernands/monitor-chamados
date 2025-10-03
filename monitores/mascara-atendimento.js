@@ -34,7 +34,7 @@ const { enviarMensagem } = require("./telegram");
 
     let chamadosSemMascara = [];
 
-    // trecho específico do formulário
+    // trecho do formulário
     const regexFormulario = /nos responda com as seguintes informaç(ões|oes)/i;
 
     for (const chamado of chamados) {
@@ -50,6 +50,18 @@ const { enviarMensagem } = require("./telegram");
         console.log(`ℹ️ Não foi necessário expandir conversas no chamado ${chamado.id}`);
       }
 
+      // 🔍 Log do texto capturado no body
+      const dumpText = await page.evaluate(() => {
+        return (document.body.innerText || "").replace(/\s+/g, " ").trim();
+      });
+      console.log(`🔍 Texto capturado no chamado ${chamado.id}:`);
+      console.log(dumpText.slice(0, 500)); // só primeiros 500 chars para não poluir
+
+      // 🔍 Log de iframes
+      const frames = page.frames().map(f => f.url());
+      console.log("🖼️ Iframes encontrados:", frames);
+
+      // 🔎 Verificação no body principal (por enquanto)
       const contemMascara = await page.evaluate((regexSource) => {
         const texto = (document.body.innerText || "")
           .replace(/\s+/g, " ")
